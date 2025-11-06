@@ -15,17 +15,19 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    VueRouter(),
-    Layouts(),
+    // ✅ Vue plugin FIRST
     Vue({
       template: { transformAssetUrls },
     }),
-    // https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin#readme
+
+    // ✅ Then vue-router and layouts
+    VueRouter(),
+    Layouts(),
+
+    // ✅ Then Vuetify, components, fonts, auto-import
     Vuetify({
       autoImport: true,
-      styles: {
-        configFile: 'src/styles/settings.scss',
-      },
+      styles: { configFile: 'src/styles/settings.scss' },
     }),
     Components(),
     Fonts({
@@ -44,12 +46,11 @@ export default defineConfig({
           pinia: ['defineStore', 'storeToRefs'],
         },
       ],
-      eslintrc: {
-        enabled: true,
-      },
+      eslintrc: { enabled: true },
       vueTemplate: true,
     }),
   ],
+
   optimizeDeps: {
     exclude: [
       'vuetify',
@@ -59,22 +60,15 @@ export default defineConfig({
       'unplugin-vue-router/data-loaders/basic',
     ],
   },
+
   define: { 'process.env': {} },
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('src', import.meta.url)),
     },
-    extensions: [
-      '.js',
-      '.json',
-      '.jsx',
-      '.mjs',
-      '.ts',
-      '.tsx',
-      '.vue',
-    ],
+    extensions: ['.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
   },
-  server: {
-    port: 3000,
-  },
+
+  server: { port: 3000 },
 })

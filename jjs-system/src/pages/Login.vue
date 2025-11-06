@@ -1,3 +1,4 @@
+<!-- pages/Login.vue -->
 <template>
   <v-container fluid class="login-container">
     <v-row justify="center" align="center" class="h-100">

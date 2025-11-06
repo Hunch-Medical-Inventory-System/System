@@ -23,6 +23,7 @@ declare module 'vue-router/auto-routes' {
     '/Expired': RouteRecordInfo<'/Expired', '/Expired', Record<never, never>, Record<never, never>>,
     '/Home': RouteRecordInfo<'/Home', '/Home', Record<never, never>, Record<never, never>>,
     '/Locker': RouteRecordInfo<'/Locker', '/Locker', Record<never, never>, Record<never, never>>,
+    '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
     '/Logs': RouteRecordInfo<'/Logs', '/Logs', Record<never, never>, Record<never, never>>,
     '/Scanner': RouteRecordInfo<'/Scanner', '/Scanner', Record<never, never>, Record<never, never>>,
   }
@@ -56,6 +57,10 @@ declare module 'vue-router/auto-routes' {
     }
     'src/pages/Locker.vue': {
       routes: '/Locker'
+      views: never
+    }
+    'src/pages/Login.vue': {
+      routes: '/Login'
       views: never
     }
     'src/pages/Logs.vue': {

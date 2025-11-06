@@ -6,7 +6,7 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/Login.vue'),
+    component: () => import('@/pages/Login.vue'),
     meta: { requiresGuest: true }
   },
   {
@@ -14,12 +14,12 @@ const routes = [
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', name: 'Home', component: () => import('@/views/Home.vue') },
-      { path: '/locker', name: 'Locker', component: () => import('@/views/Locker.vue') },
-      { path: '/logs', name: 'Logs', component: () => import('@/views/Logs.vue') },
-      { path: '/expired', name: 'Expired', component: () => import('@/views/Expired.vue') },
-      { path: '/scanner', name: 'Scanner', component: () => import('@/views/Scanner.vue') },
-      { path: '/ai-chat', name: 'AIChat', component: () => import('@/views/AIChat.vue') }
+      { path: '', name: 'Home', component: () => import('@/pages/Home.vue') },
+      { path: '/locker', name: 'Locker', component: () => import('@/pages/Locker.vue') },
+      { path: '/logs', name: 'Logs', component: () => import('@/pages/Logs.vue') },
+      { path: '/expired', name: 'Expired', component: () => import('@/pages/Expired.vue') },
+      { path: '/scanner', name: 'Scanner', component: () => import('@/pages/Scanner.vue') },
+      { path: '/ai-chat', name: 'AIChat', component: () => import('@/pages/AIChat.vue') }
     ]
   }
 ]
