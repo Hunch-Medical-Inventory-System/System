@@ -19,6 +19,16 @@ declare module 'vue-router/auto-routes' {
    */
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
+    '/ActivityLogs': RouteRecordInfo<'/ActivityLogs', '/ActivityLogs', Record<never, never>, Record<never, never>>,
+    '/AiChat': RouteRecordInfo<'/AiChat', '/AiChat', Record<never, never>, Record<never, never>>,
+    '/Alerts': RouteRecordInfo<'/Alerts', '/Alerts', Record<never, never>, Record<never, never>>,
+    '/AppFooter': RouteRecordInfo<'/AppFooter', '/AppFooter', Record<never, never>, Record<never, never>>,
+    '/Dashboard': RouteRecordInfo<'/Dashboard', '/Dashboard', Record<never, never>, Record<never, never>>,
+    '/Header': RouteRecordInfo<'/Header', '/Header', Record<never, never>, Record<never, never>>,
+    '/Inventory': RouteRecordInfo<'/Inventory', '/Inventory', Record<never, never>, Record<never, never>>,
+    '/Login': RouteRecordInfo<'/Login', '/Login', Record<never, never>, Record<never, never>>,
+    '/Scanner': RouteRecordInfo<'/Scanner', '/Scanner', Record<never, never>, Record<never, never>>,
+    '/Sidebar': RouteRecordInfo<'/Sidebar', '/Sidebar', Record<never, never>, Record<never, never>>,
   }
 
   /**
@@ -34,6 +44,46 @@ declare module 'vue-router/auto-routes' {
   export interface _RouteFileInfoMap {
     'src/pages/index.vue': {
       routes: '/'
+      views: never
+    }
+    'src/pages/ActivityLogs.vue': {
+      routes: '/ActivityLogs'
+      views: never
+    }
+    'src/pages/AiChat.vue': {
+      routes: '/AiChat'
+      views: never
+    }
+    'src/pages/Alerts.vue': {
+      routes: '/Alerts'
+      views: never
+    }
+    'src/pages/AppFooter.vue': {
+      routes: '/AppFooter'
+      views: never
+    }
+    'src/pages/Dashboard.vue': {
+      routes: '/Dashboard'
+      views: never
+    }
+    'src/pages/Header.vue': {
+      routes: '/Header'
+      views: never
+    }
+    'src/pages/Inventory.vue': {
+      routes: '/Inventory'
+      views: never
+    }
+    'src/pages/Login.vue': {
+      routes: '/Login'
+      views: never
+    }
+    'src/pages/Scanner.vue': {
+      routes: '/Scanner'
+      views: never
+    }
+    'src/pages/Sidebar.vue': {
+      routes: '/Sidebar'
       views: never
     }
   }

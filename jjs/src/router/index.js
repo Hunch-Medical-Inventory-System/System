@@ -1,36 +1,68 @@
-/**
- * router/index.ts
- *
- * Automatic routes for `./src/pages/*.vue`
- */
-
-// Composables
 import { createRouter, createWebHistory } from 'vue-router'
-import { setupLayouts } from 'virtual:generated-layouts'
-import { routes } from 'vue-router/auto-routes'
+import { useAuthStore } from '@/stores/main'
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/pages/Login.vue'),
+    meta: { requiresGuest: true }
+  },
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('@/layouts/DefaultLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'Dashboard',
+        component: () => import('@/pages/Dashboard.vue')
+      },
+      {
+        path: 'inventory',
+        name: 'Inventory',
+        component: () => import('@/pages/Inventory.vue')
+      },
+      {
+        path: 'logs',
+        name: 'ActivityLogs',
+        component: () => import('@/pages/ActivityLogs.vue')
+      },
+      {
+        path: 'alerts',
+        name: 'Alerts',
+        component: () => import('@/pages/Alerts.vue')
+      },
+      {
+        path: 'scanner',
+        name: 'Scanner',
+        component: () => import('@/pages/Scanner.vue')
+      },
+      {
+        path: 'ai-chat',
+        name: 'AIChat',
+        component: () => import('@/pages/AiChat.vue')
+      }
+    ]
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: setupLayouts(routes),
+  history: createWebHistory(),
+  routes
 })
 
-// Workaround for https://github.com/vitejs/vite/issues/11804
-router.onError((err, to) => {
-  if (err?.message?.includes?.('Failed to fetch dynamically imported module')) {
-    if (localStorage.getItem('vuetify:dynamic-reload')) {
-      console.error('Dynamic import error, reloading page did not fix it', err)
-    } else {
-      console.log('Reloading page to fix dynamic import error')
-      localStorage.setItem('vuetify:dynamic-reload', 'true')
-      location.assign(to.fullPath)
-    }
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/login')
+  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next('/')
   } else {
-    console.error(err)
+    next()
   }
-})
-
-router.isReady().then(() => {
-  localStorage.removeItem('vuetify:dynamic-reload')
 })
 
 export default router
