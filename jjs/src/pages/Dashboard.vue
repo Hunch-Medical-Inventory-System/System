@@ -1,219 +1,509 @@
 <template>
-  <div class="page-transition">
-    <div class="page-header">
-      <h2>Dashboard Overview</h2>
-      <p>Welcome back! Here's what's happening with your medical inventory today.</p>
-    </div>
-    
-    <div class="dashboard-cards">
-      <v-card class="gradient-card" v-for="card in cards" :key="card.title">
-        <div class="card-icon">
-          <v-icon>{{ card.icon }}</v-icon>
+  <v-container fluid class="dashboard-container">
+    <!-- Header -->
+    <v-row class="mb-4">
+      <v-col cols="12">
+        <div class="dashboard-header">
+          <h1 class="dashboard-title">Dashboard</h1>
+          <v-btn
+            color="primary"
+            variant="flat"
+            prepend-icon="mdi-refresh"
+            @click="refreshDashboard"
+            :loading="isLoading"
+            size="small"
+          >
+            Refresh
+          </v-btn>
         </div>
-        <h3>{{ card.value }}</h3>
-        <p>{{ card.title }}</p>
-        <div class="card-trend" :class="card.trend">
-          <v-icon small>{{ card.trendIcon }}</v-icon>
-          {{ card.trendText }}
-        </div>
-      </v-card>
-    </div>
-    
-    <div class="page-header">
-      <h2>Recent Activity</h2>
-      <p>Latest actions and updates in your inventory system</p>
-    </div>
-    
-    <v-card class="gradient-card">
-      <v-table>
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Action</th>
-            <th>User</th>
-            <th>Date & Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="activity in recentActivities" :key="activity.id">
-            <td>{{ activity.item }}</td>
-            <td>{{ activity.action }}</td>
-            <td>
-              <v-chip size="small">{{ activity.user }}</v-chip>
-            </td>
-            <td>{{ activity.timestamp }}</td>
-            <td>
-              <span class="status-badge" :class="activity.statusClass">
-                {{ activity.status }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-      <div v-if="!recentActivities.length" class="empty-state">
-        <v-icon size="48">mdi-clipboard-list</v-icon>
-        <h3>No Recent Activity</h3>
-        <p>Activity will appear here as you use the system</p>
-      </div>
-    </v-card>
-  </div>
+      </v-col>
+    </v-row>
+
+    <!-- Stats Cards -->
+    <v-row class="mb-6" dense>
+      <v-col cols="12" md="3" v-for="stat in stats" :key="stat.title">
+        <v-card class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon">
+              <v-icon :color="stat.color">{{ stat.icon }}</v-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stat.value }}</div>
+              <div class="stat-title">{{ stat.title }}</div>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Main Content -->
+    <v-row>
+      <!-- Inventory Status -->
+      <v-col cols="12" md="8">
+        <v-card class="content-card">
+          <v-card-title class="card-title">
+            <v-icon color="primary" class="mr-2">mdi-clipboard-list</v-icon>
+            Inventory Status
+          </v-card-title>
+          
+          <v-card-text>
+            <div v-if="inventorySummary" class="inventory-grid">
+              <div class="inventory-item">
+                <div class="inventory-label">Total Items</div>
+                <div class="inventory-value">{{ inventorySummary.totalItems }}</div>
+              </div>
+              <div class="inventory-item">
+                <div class="inventory-label">Low Stock</div>
+                <div class="inventory-value accent">{{ inventorySummary.lowStock }}</div>
+              </div>
+              <div class="inventory-item">
+                <div class="inventory-label">Expiring Soon</div>
+                <div class="inventory-value warning">{{ inventorySummary.expiringSoon }}</div>
+              </div>
+              <div class="inventory-item">
+                <div class="inventory-label">Critical Items</div>
+                <div class="inventory-value error">{{ inventorySummary.criticalItems }}</div>
+              </div>
+            </div>
+            <div v-else class="no-data">
+              <v-icon color="disabled">mdi-database-off</v-icon>
+              <div>No inventory data</div>
+            </div>
+          </v-card-text>
+          
+          <v-card-actions>
+            <v-btn color="primary" variant="text" @click="fetchInventorySummary">
+              View Details
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-col>
+
+      <!-- Recent Activity -->
+      <v-col cols="12" md="4">
+        <v-card class="content-card">
+          <v-card-title class="card-title">
+            <v-icon color="accent" class="mr-2">mdi-history</v-icon>
+            Recent Activity
+          </v-card-title>
+          
+          <v-card-text class="activity-content">
+            <div v-if="recentActivity.length" class="activity-list">
+              <div v-for="activity in recentActivity" :key="activity.id" class="activity-item">
+                <div class="activity-icon" :style="{ color: getActivityColor(activity.type) }">
+                  <v-icon size="16">{{ getActivityIcon(activity.type) }}</v-icon>
+                </div>
+                <div class="activity-text">
+                  <span class="activity-user">{{ activity.user }}</span>
+                  {{ activity.action }}
+                </div>
+                <div class="activity-time">{{ formatTime(activity.timestamp) }}</div>
+              </div>
+            </div>
+            <div v-else class="no-data">
+              <v-icon color="disabled">mdi-timeline-clock</v-icon>
+              <div>No activity</div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useInventoryStore } from '@/stores/inventory'
 
 const inventoryStore = useInventoryStore()
+const isLoading = ref(false)
+const inventorySummary = ref(null)
+const recentActivity = ref([])
 
-// Cards data - YOU WILL REPLACE WITH REAL DATA
-const cards = computed(() => [
+const stats = ref([
   {
-    title: 'Total Inventory Items',
-    value: inventoryStore.inventory.length || 0,
-    icon: 'mdi-pill',
-    trend: 'up',
+    title: 'Total Items',
+    value: '0',
+    icon: 'mdi-package-variant',
+    color: '#4A6CF7'
+  },
+  {
+    title: 'Low Stock',
+    value: '0',
+    icon: 'mdi-alert-circle',
+    color: '#4A6CF7'
   },
   {
     title: 'Expiring Soon',
-    value: 0,
+    value: '0',
     icon: 'mdi-clock-alert',
-    trend: 'warning',
+    color: '#4A6CF7'
   },
   {
-    title: 'Recent Activities',
-    value: 0,
-    icon: 'mdi-clipboard-list',
-    trend: 'up',
-  },
-  {
-    title: 'Inventory Accuracy',
-    value: '%',
-    icon: 'mdi-check-circle',
-    trend: 'up',
+    title: 'Today\'s Updates',
+    value: '0',
+    icon: 'mdi-update',
+    color: '#4A6CF7'
   }
 ])
 
-// Recent activities - YOU WILL REPLACE WITH REAL DATA
-const recentActivities = computed(() => {
-  return []
+const PYTHON_BACKEND = {
+  baseUrl: 'http://localhost:8000',
+  endpoints: {
+    inventorySummary: '/api/inventory/summary',
+    recentActivity: '/api/activity/recent'
+  }
+}
+
+const refreshDashboard = async () => {
+  isLoading.value = true
+  try {
+    await Promise.all([
+      fetchInventorySummary(),
+      fetchRecentActivity()
+    ])
+  } catch (error) {
+    console.error('Error refreshing dashboard:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const fetchInventorySummary = async () => {
+  try {
+    const response = await callPythonBackend('inventorySummary')
+    if (response) {
+      inventorySummary.value = response
+      stats.value[0].value = response.totalItems?.toString() || '0'
+      stats.value[1].value = response.lowStock?.toString() || '0'
+      stats.value[2].value = response.expiringSoon?.toString() || '0'
+      stats.value[3].value = response.recentUpdates?.toString() || '0'
+    }
+  } catch (error) {
+    console.error('Error fetching inventory summary:', error)
+  }
+}
+
+const fetchRecentActivity = async () => {
+  try {
+    const response = await callPythonBackend('recentActivity')
+    if (response && Array.isArray(response)) {
+      recentActivity.value = response.slice(0, 4)
+    }
+  } catch (error) {
+    console.error('Error fetching recent activity:', error)
+  }
+}
+
+const callPythonBackend = async (endpoint) => {
+  /*
+  const response = await fetch(`${PYTHON_BACKEND.baseUrl}${PYTHON_BACKEND.endpoints[endpoint]}`)
+  if (!response.ok) throw new Error(`Backend error: ${response.status}`)
+  return await response.json()
+  */
+  
+  return new Promise(resolve => {
+    setTimeout(() => {
+      switch (endpoint) {
+        case 'inventorySummary':
+          resolve({
+            totalItems: inventoryStore.inventory?.length || 0,
+            lowStock: inventoryStore.inventory?.filter(item => item.quantity < (item.reorderLevel || 50)).length || 0,
+            expiringSoon: inventoryStore.inventory?.filter(item => {
+              if (!item.expiryDate) return false
+              const daysUntilExpiry = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24))
+              return daysUntilExpiry <= 30
+            }).length || 0,
+            criticalItems: inventoryStore.inventory?.filter(item => item.isCritical).length || 0,
+            recentUpdates: 0
+          })
+          break
+        case 'recentActivity':
+          resolve([])
+          break
+        default:
+          resolve(null)
+      }
+    }, 300)
+  })
+}
+
+const getActivityIcon = (type) => {
+  const icons = {
+    add: 'mdi-plus',
+    update: 'mdi-pencil',
+    delete: 'mdi-delete',
+    checkout: 'mdi-cart',
+    restock: 'mdi-package-down'
+  }
+  return icons[type] || 'mdi-information'
+}
+
+const getActivityColor = (type) => {
+  const colors = {
+    add: '#4A6CF7',
+    update: '#4A6CF7',
+    delete: '#4A6CF7',
+    checkout: '#4A6CF7',
+    restock: '#4A6CF7'
+  }
+  return colors[type] || '#8E8E93'
+}
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+onMounted(() => {
+  refreshDashboard()
 })
 </script>
 
 <style scoped>
-.page-header {
-  margin-bottom: 40px;
+.dashboard-container {
+  height: 100%;
+  background: linear-gradient(135deg, #0A0E17 0%, #1A1F2E 100%);
+  padding: 24px;
+  overflow-y: auto;
 }
 
-.page-header h2 {
-  font-size: 2.2rem;
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dashboard-title {
+  font-size: 32px;
   font-weight: 700;
-  margin-bottom: 12px;
-  background: var(--accent-gradient);
+  background: linear-gradient(90deg, #4A6CF7 0%, #8A2BE2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin: 0;
 }
 
-.page-header p {
-  color: var(--text-secondary);
-  font-size: 1.05rem;
-  max-width: 600px;
-  line-height: 1.6;
+.stat-card {
+  background: #1A1F2E;
+  border: 1px solid #2D3447;
+  border-radius: 12px;
+  padding: 20px;
+  height: 100px;
 }
 
-.dashboard-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 40px;
+.stat-content {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
-.card-icon {
+.stat-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-md);
+  background: rgba(74, 108, 247, 0.1);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
-  font-size: 1.6rem;
-  color: white;
-  background: var(--accent-gradient);
-  box-shadow: var(--accent-glow);
+  margin-right: 16px;
+  flex-shrink: 0;
 }
 
-.card-icon :deep(.v-icon) {
-  font-size: 1.6rem;
+.stat-icon .v-icon {
+  font-size: 28px;
 }
 
-.gradient-card h3 {
-  font-size: 2.2rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--text-primary);
+.stat-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.gradient-card p {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: #8E8E93;
   font-weight: 500;
 }
 
-.card-trend {
+.content-card {
+  background: #1A1F2E;
+  border: 1px solid #2D3447;
+  border-radius: 12px;
+  height: 100%;
+}
+
+.card-title {
+  color: #FFFFFF;
+  font-weight: 600;
+  padding: 20px 20px 0 20px;
+}
+
+.card-title .v-icon {
+  margin-right: 8px;
+}
+
+.v-card-text {
+  padding: 20px;
+  flex: 1;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.inventory-item {
+  background: #2D3447;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+}
+
+.inventory-label {
+  font-size: 14px;
+  color: #8E8E93;
+  margin-bottom: 8px;
+}
+
+.inventory-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: #4A6CF7;
+}
+
+.inventory-value.accent {
+  color: #4A6CF7;
+}
+
+.inventory-value.warning {
+  color: #4A6CF7;
+}
+
+.inventory-value.error {
+  color: #4A6CF7;
+}
+
+.activity-content {
+  height: 280px;
+  padding: 0 !important;
+}
+
+.activity-list {
+  padding: 20px;
+}
+
+.activity-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  font-size: 0.9rem;
+  padding: 12px 0;
+  border-bottom: 1px solid #2D3447;
 }
 
-.card-trend.up {
-  color: var(--success-color);
+.activity-item:last-child {
+  border-bottom: none;
 }
 
-.card-trend.warning {
-  color: var(--warning-color);
+.activity-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(74, 108, 247, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-secondary);
+.activity-text {
+  flex: 1;
+  font-size: 14px;
+  color: #FFFFFF;
+  line-height: 1.4;
+  min-width: 0;
+  word-wrap: break-word;
 }
 
-.empty-state h3 {
-  font-size: 1.6rem;
-  margin-bottom: 12px;
-  color: var(--text-primary);
-}
-
-.empty-state p {
-  max-width: 400px;
-  margin: 0 auto;
-  line-height: 1.6;
-}
-
-:deep(.v-table) {
-  background: transparent !important;
-}
-
-:deep(.v-table thead th) {
-  background: var(--tertiary-dark);
-  color: var(--text-secondary) !important;
+.activity-user {
   font-weight: 600;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-color);
+  color: #4A6CF7;
+  margin-right: 4px;
 }
 
-:deep(.v-table tbody td) {
-  color: var(--text-primary) !important;
-  border-bottom: 1px solid var(--border-color);
+.activity-time {
+  font-size: 12px;
+  color: #8E8E93;
+  margin-left: 12px;
+  flex-shrink: 0;
 }
 
-:deep(.v-table tbody tr:hover td) {
-  background: rgba(74, 108, 247, 0.05) !important;
+.no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #8E8E93;
+}
+
+.no-data .v-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-data div {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+  
+  .dashboard-title {
+    font-size: 24px;
+  }
+  
+  .stat-card {
+    padding: 16px;
+    height: 90px;
+  }
+  
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+  
+  .inventory-value {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .inventory-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .activity-text {
+    font-size: 13px;
+  }
 }
 </style>

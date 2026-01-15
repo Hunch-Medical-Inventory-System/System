@@ -12,7 +12,7 @@
               color="primary"
               class="mb-4"
             >
-              mdi-alpha-j-box
+              mdi-medication
             </v-icon>
             <h1 class="gradient-text text-h3 font-weight-bold mb-2">
               JJs 2.0
