@@ -1,3 +1,0 @@
-[submodule "modules/database"]
-	path = modules/database
-	url = https://github.com/Hunch-Medical-Inventory-System/DataBase-Module.git
