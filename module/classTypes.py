@@ -117,23 +117,38 @@ class invManage:
         try:
             cursor = self.connection.cursor()
             cursor.execute(
-                "INSERT INTO inventory (upid, location, quantity, expiration, name) "
-                "VALUES (%s, %s, %s, %s, %s)",
-                (upid, location, quantity, expiration, name)
+                "SELECT quantity FROM inventory "
+                "WHERE location = %s AND upid = %s AND expiration = %s",
+                (location, upid, expiration)
             )
-            self.connection.commit()
+
+            result = cursor.fetchone()
             cursor.close()
 
-            # Log inventory insertion
+            if not result:
+                cursor = self.connection.cursor()
+                cursor.execute(
+                    "INSERT INTO inventory (upid, location, quantity, expiration, name) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (upid, location, quantity, expiration, name)
+                )
+                self.connection.commit()
+                cursor.close()
+            else:
+                cursor = self.connection.cursor()
+                cursor.execute(
+                    "UPDATE inventory SET quantity = quantity + %s "
+                    "WHERE location = %s AND upid = %s AND expiration = %s",
+                    (quantity, location, upid, expiration)
+                )
+                self.connection.commit()
+                cursor.close()
+
             logManage(self.connection).logEntry(
                 userid,
                 location,
-                f"Inserted {quantity} of {name} (UPID: {upid})"
+                f"Added {quantity} of {upid}"
             )
-
-        except mysql.connector.Error as err:
-            print(f"Inventory Insert Error: {err}")
-            self.connection.db.rollback()
 
     def invRemove(self, userid, upid, location, quantity, expiration):
         """
