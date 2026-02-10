@@ -1,0 +1,11 @@
+{
+  "connectioninfo": [
+    {
+      "host": "jacsproject.eyeofthewalr.us",
+      "user": "testuser",
+      "password": "Colorado13!",
+      "database": "inv",
+      "port": 3306
+    }
+  ]
+}

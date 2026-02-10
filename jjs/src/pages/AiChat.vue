@@ -1,82 +1,82 @@
 <template>
-  <div class="chat-container">
-    <!-- Header -->
-    <div class="chat-header">
-      <div class="header-content">
-        <h1 class="chat-title">JJs V2AI Assistant</h1>
-        <v-btn
-          color="primary"
-          variant="flat"
-          size="small"
-          class="clear-btn"
-          @click="clearChat"
-          prepend-icon="mdi-delete-sweep"
-        >
-          Clear Chat
-        </v-btn>
-      </div>
-      <div class="chat-subtitle">
-        Ask questions about medical inventory, drug interactions, or pharmaceutical information
-      </div>
-    </div>
-
-    <!-- Messages Container -->
-    <v-card class="messages-card">
-      <div class="messages-container" ref="messagesContainer">
-        <!-- Welcome Message -->
-        <div v-if="!messages.length" class="welcome-message">
-          <div class="welcome-icon">
-            <v-icon color="primary" size="64">mdi-robot-happy</v-icon>
-          </div>
-          <h3 class="welcome-title">Welcome to the JJs V2 MedAI Assistant</h3>
-          <p class="welcome-text">
-            I'm here to help you with medical inventory management, 
-            drug information, and pharmaceutical queries.
-          </p>
-          <div class="suggestions">
-            <v-chip
-              v-for="(suggestion, i) in suggestions"
-              :key="i"
-              class="suggestion-chip"
-              variant="outlined"
-              @click="useSuggestion(suggestion)"
-            >
-              {{ suggestion }}
-            </v-chip>
-          </div>
-        </div>
-
-        <!-- Chat Messages -->
-        <div v-else class="messages-list">
-          <div
-            v-for="(msg, i) in messages"
-            :key="i"
-            class="message-wrapper"
-            :class="msg.role"
-          >
-            <div class="message-content">
-              <div class="message-header">
-                <div class="message-avatar">
-                  <v-icon v-if="msg.role === 'user'" color="#4A6CF7">mdi-account</v-icon>
-                  <v-icon v-else color="#4A6CF7">mdi-robot</v-icon>
-                </div>
-                <div class="message-role">
-                  {{ msg.role === 'user' ? 'You' : 'MedLlama2' }}
-                </div>
-                <div class="message-time">
-                  {{ formatMessageTime(msg.timestamp) }}
+  <v-container fluid class="ai-assistant-container">
+    <v-row class="fill-height">
+      <v-col cols="12" class="h-100">
+        <!-- Main Chat Container -->
+        <v-card class="ai-chat-card h-100">
+          <!-- Chat Header -->
+          <div class="chat-header">
+            <div class="d-flex align-center">
+              <div class="ai-icon-container mr-3">
+                <v-icon size="28" color="primary">mdi-brain</v-icon>
+              </div>
+              <div>
+                <h2 class="text-h6 font-weight-bold">MedLLaMA Assistant</h2>
+                <div class="d-flex align-center">
+                  <v-chip
+                    size="x-small"
+                    :color="connectionStatus.color"
+                    class="mr-2"
+                    label
+                  >
+                    <v-icon size="12" class="mr-1">mdi-circle</v-icon>
+                    {{ connectionStatus.text }}
+                  </v-chip>
                 </div>
               </div>
-              <div class="message-text" v-html="formatMessage(msg.content)"></div>
+            </div>
+            
+            <div class="header-actions">
+              <v-tooltip text="Clear conversation" location="bottom">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    @click="clearConversation"
+                    variant="text"
+                    size="small"
+                  >
+                    <v-icon>mdi-broom</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
             </div>
           </div>
-          
-          <!-- Loading Indicator -->
-          <div v-if="isLoading" class="loading-indicator">
-            <div class="typing-dots">
-              <div class="dot"></div>
-              <div class="dot"></div>
-              <div class="dot"></div>
+
+          <!-- Chat Messages Area -->
+          <div ref="messagesContainer" class="messages-container">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="['message-bubble', message.role]"
+            >
+              <div class="message-role-indicator">
+                <v-avatar size="24" :color="message.role === 'user' ? 'primary' : 'accent'">
+                  <v-icon size="14" color="white">
+                    {{ message.role === 'user' ? 'mdi-account' : 'mdi-robot' }}
+                  </v-icon>
+                </v-avatar>
+              </div>
+              
+              <div class="message-content">
+                <div class="message-text">
+                  <pre v-if="message.role === 'assistant'" class="ai-response">{{ message.content }}</pre>
+                  <div v-else class="user-message">{{ message.content }}</div>
+                </div>
+                
+                <div class="message-meta">
+                  <span class="timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div v-if="isLoading" class="typing-indicator">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
             </div>
             <span class="loading-text">JJs V2 is thinking...</span>
           </div>
@@ -84,109 +84,98 @@
       </div>
     </v-card>
 
-    <!-- Input Area -->
-    <v-card class="input-card">
-      <div class="input-container">
-        <v-textarea
-          v-model="userInput"
-          class="message-input"
-          variant="outlined"
-          placeholder="Type your medical or inventory question here..."
-          rows="2"
-          auto-grow
-          hide-details
-          @keydown.enter.exact.prevent="sendMessage"
-          :loading="isLoading"
-          :disabled="isLoading"
-        >
-          <template v-slot:append-inner>
-            <v-btn
-              color="primary"
-              variant="flat"
-              :loading="isLoading"
-              :disabled="!userInput.trim() || isLoading"
-              @click="sendMessage"
-              class="send-btn"
-              size="small"
-            >
-              <v-icon>mdi-send</v-icon>
-            </v-btn>
-          </template>
-        </v-textarea>
-        
-        <div class="input-hints">
-          <v-icon size="16" color="#8E8E93">mdi-information</v-icon>
-          <span>Press Enter to send • Shift+Enter for new line</span>
-        </div>
-      </div>
-    </v-card>
-  </div>
+          <!-- Input Area -->
+          <div class="input-section">
+            <div class="input-wrapper">
+              <v-textarea
+                ref="messageInput"
+                v-model="userMessage"
+                placeholder="Type your medical or inventory query..."
+                variant="solo-filled"
+                rows="1"
+                auto-grow
+                hide-details
+                :disabled="isLoading"
+                @keydown.enter.exact.prevent="sendMessage"
+                class="message-input"
+                flat
+                bg-color="secondary-dark"
+              >
+                <template v-slot:append-inner>
+                  <v-btn
+                    icon
+                    :color="userMessage.trim() ? 'primary' : 'disabled'"
+                    :disabled="!userMessage.trim() || isLoading"
+                    @click="sendMessage"
+                    size="small"
+                    class="send-btn"
+                  >
+                    <v-icon>{{ isLoading ? 'mdi-loading mdi-spin' : 'mdi-send' }}</v-icon>
+                  </v-btn>
+                </template>
+              </v-textarea>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <v-chip
+                v-for="action in quickActions"
+                :key="action.label"
+                variant="tonal"
+                size="small"
+                @click="executeQuickAction(action)"
+                class="quick-action-chip"
+                :prepend-icon="action.icon"
+              >
+                {{ action.label }}
+              </v-chip>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useInventoryStore } from '@/stores/main'
 
-/* ---------------- CORE STATE ---------------- */
+const MEDLLAMA_CONFIG = {
+  apiBaseUrl: 'https://your-medllama-api.com/v1',
+  apiKey: 'your-api-key-here',
+  defaultModel: 'medllama-2-13b',
+  maxTokens: 2000,
+  temperature: 0.7
+}
 
-const userInput = ref('')
+const userMessage = ref('')
 const messages = ref([])
 const isLoading = ref(false)
 const messagesContainer = ref(null)
+const messageInput = ref(null)
 
-/* ---------------- CREW / DB CONTEXT ---------------- */
-/*
-  🔌 These will later be populated from your DB (Supabase, etc.)
-  For now, placeholders that already work with the AI.
-*/
+const inventoryStore = useInventoryStore()
 
-const crewContext = ref({
-  role: 'Crew Medical Technician',
-  clearance: 'Level 2',
-  environment: 'Orbital / Space Station',
+const connectionStatus = computed(() => {
+  return {
+    color: 'success',
+    text: 'Connected'
+  }
 })
 
-const inventoryContext = ref({
-  criticalSupplies: [
-    'Ibuprofen',
-    'Epinephrine',
-    'Insulin',
-    'Saline',
-  ],
-})
-
-/* ---------------- SUGGESTIONS ---------------- */
-
-const suggestions = ref([
-  'Ibuprofen storage status',
-  'Insulin refrigeration check',
-  'Low-level diagnostic: fever',
-  'Critical inventory warnings'
+const quickActions = computed(() => [
+  { label: 'Inventory Summary', icon: 'mdi-clipboard-list', action: 'inventorySummary' },
+  { label: 'Expiry Report', icon: 'mdi-calendar-clock', action: 'expiryReport' },
+  { label: 'Drug Info', icon: 'mdi-pill', action: 'drugInfo' },
+  { label: 'Usage Analytics', icon: 'mdi-chart-line', action: 'analytics' }
 ])
 
-/* ---------------- FORMATTERS ---------------- */
-
-const formatMessage = (content) => {
-  return content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>')
-}
-
-const formatMessageTime = (timestamp) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-/* ---------------- UI HELPERS ---------------- */
-
-const clearChat = () => {
-  messages.value = []
-}
-
-const useSuggestion = (suggestion) => {
-  userInput.value = suggestion
-  sendMessage()
+const formatTimestamp = (timestamp) => {
+  return new Date(timestamp).toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
 }
 
 const scrollToBottom = () => {
@@ -198,117 +187,181 @@ const scrollToBottom = () => {
   })
 }
 
-/* ---------------- SYSTEM PROMPT ---------------- */
-/*
-  🚀 This is the KEY upgrade:
-  - Short answers
-  - Space context
-  - Crew-only tone
-  - Low-level diagnostics
-*/
-
-const systemPrompt = () => `
-You are JJs V2AI, a space-mission medical and inventory assistant. 
-
-CONTEXT:
-- Environment: ${crewContext.value.environment}
-- Crew Role: ${crewContext.value.role}
-- Clearance: ${crewContext.value.clearance}
-
-RULES:
-- Responses MUST be concise.
-- Prefer bullet points or numbered steps.
-- Assume crew member has medical training.
-- Perform low-level diagnostics only (no speculation).
-- Flag missing or critical inventory issues.
-- No emojis. No filler. No disclaimers.
-
-AVAILABLE INVENTORY:
-${inventoryContext.value.criticalSupplies.join(', ')}
-
-If unsure, ask ONE short clarifying question.
-`
-
-/* ---------------- MAIN CHAT LOGIC ---------------- */
-
-async function sendMessage() {
-  const input = userInput.value.trim()
-  if (!input || isLoading.value) return
-
-  const userMessage = {
-    role: 'user',
-    content: input,
-    timestamp: new Date().toISOString(),
+const addMessage = (content, role) => {
+  const message = {
+    id: Date.now() + Math.random(),
+    content,
+    role,
+    timestamp: new Date().toISOString()
   }
-
-  messages.value.push(userMessage)
-  userInput.value = ''
-  isLoading.value = true
+  
+  messages.value.push(message)
   scrollToBottom()
+  
+  localStorage.setItem('medllama_conversation', JSON.stringify(messages.value))
+}
 
-  try {
-    const payloadMessages = [
-      { role: 'system', content: systemPrompt() },
-      ...messages.value.map(({ role, content }) => ({ role, content })),
-    ]
-
-    const res = await fetch('/ollama/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+const buildContext = () => {
+  const context = {
+    systemPrompt: `You are MedLLaMA, a specialized medical AI assistant. Provide accurate, evidence-based medical information and inventory insights.`,
+    
+    inventoryContext: inventoryStore?.inventory?.length > 0 ? {
+      summary: {
+        totalItems: inventoryStore.inventory.length,
+        lowStock: inventoryStore.inventory.filter(item => item.quantity < (item.reorderLevel || 50)).length,
+        expiringSoon: inventoryStore.inventory.filter(item => {
+          if (!item.expiryDate) return false
+          const daysUntilExpiry = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24))
+          return daysUntilExpiry <= 30
+        }).length
       },
-      body: JSON.stringify({
-        model: 'medllama2',
-        messages: payloadMessages,
-        temperature: 0.2,        // 🔒 tighter, factual
-        max_tokens: 300,         
-        stream: false,
-      }),
-    })
+      categories: [...new Set(inventoryStore.inventory.map(item => item.category).filter(Boolean))],
+      criticalItems: inventoryStore.inventory.filter(item => item.isCritical)
+    } : null,
+    
+    conversationHistory: messages.value.slice(-10).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }))
+  }
+  
+  return context
+}
 
-    if (!res.ok) {
-      throw new Error(`Ollama error ${res.status}`)
+const sendMessage = async () => {
+  const content = userMessage.value.trim()
+  if (!content || isLoading.value) return
+
+  addMessage(content, 'user')
+  userMessage.value = ''
+  
+  isLoading.value = true
+  
+  try {
+    const context = buildContext()
+    
+    const requestPayload = {
+      model: MEDLLAMA_CONFIG.defaultModel,
+      messages: [
+        {
+          role: 'system',
+          content: context.systemPrompt
+        },
+        ...context.conversationHistory,
+        {
+          role: 'user',
+          content: content,
+          context: context.inventoryContext
+        }
+      ],
+      max_tokens: MEDLLAMA_CONFIG.maxTokens,
+      temperature: MEDLLAMA_CONFIG.temperature
     }
-
-    const data = await res.json()
-    const reply = data.choices[0].message.content
-
-    messages.value.push({
-      role: 'assistant',
-      content: reply,
-      timestamp: new Date().toISOString(),
-    })
-  } catch (err) {
-    console.error('Chat error:', err)
-    messages.value.push({
-      role: 'assistant',
-      content:
-        'Connection failure. Verify Ollama service and model availability.',
-      timestamp: new Date().toISOString(),
-    })
+    
+    const response = await callMedLLaMAAPI(requestPayload)
+    
+    addMessage(response.content, 'assistant')
+    
+  } catch (error) {
+    console.error('MedLLaMA API Error:', error)
+    addMessage(`Error: ${error.message}. Please try again.`, 'assistant')
   } finally {
     isLoading.value = false
-    scrollToBottom()
+    nextTick(() => {
+      if (messageInput.value) {
+        messageInput.value.focus()
+      }
+    })
   }
 }
 
-/* ---------------- WATCHERS ---------------- */
+const callMedLLaMAAPI = async (payload) => {
+  const response = await fetch(`${MEDLLAMA_CONFIG.apiBaseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${MEDLLAMA_CONFIG.apiKey}`
+    },
+    body: JSON.stringify(payload)
+  })
+  
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  return {
+    content: data.choices[0].message.content,
+    model: data.model
+  }
+}
 
-watch(messages, () => {
-  scrollToBottom()
-}, { deep: true })
+const executeQuickAction = (action) => {
+  switch (action.action) {
+    case 'inventorySummary':
+      userMessage.value = 'Provide a comprehensive inventory summary'
+      break
+    case 'expiryReport':
+      userMessage.value = 'Generate a report of medications expiring in the next 30 days'
+      break
+    case 'drugInfo':
+      userMessage.value = 'Search for detailed drug information and interactions'
+      break
+    case 'analytics':
+      userMessage.value = 'Show usage patterns and inventory optimization suggestions'
+      break
+  }
+  sendMessage()
+}
+
+const clearConversation = () => {
+  messages.value = []
+  localStorage.removeItem('medllama_conversation')
+  addMessage(
+    'Hello! JJ, your medical AI assistant. How can I help you today?',
+    'assistant'
+  )
+}
 
 onMounted(() => {
+  const saved = localStorage.getItem('medllama_conversation')
+  if (saved) {
+    messages.value = JSON.parse(saved)
+  } else {
+    addMessage(
+      'Hello! I am JJ, your medical AI assistant. How can I help you today?',
+      'assistant'
+    )
+  }
   scrollToBottom()
+  
+  nextTick(() => {
+    if (messageInput.value) {
+      messageInput.value.focus()
+    }
+  })
 })
+
+watch(messages, scrollToBottom, { deep: true })
 </script>
 
 
 <style scoped>
-.chat-container {
-  height: 100vh;
-  background: linear-gradient(135deg, #0A0E17 0%, #1A1F2E 100%);
-  padding: 24px;
+.ai-assistant-container {
+  height: calc(100vh - 64px);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+  padding: 0;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.ai-chat-card {
+  background: var(--card-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -341,14 +394,9 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.messages-card {
-  background: #1A1F2E;
-  border: 1px solid #2D3447;
-  border-radius: 12px;
-  flex: 1;
+.header-actions {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  gap: 8px;
 }
 
 .messages-container {
@@ -425,14 +473,12 @@ onMounted(() => {
   }
 }
 
-.message-wrapper.user {
-  align-self: flex-end;
-  max-width: 80%;
+.message-bubble.user {
+  flex-direction: row-reverse;
 }
 
-.message-wrapper.assistant {
-  align-self: flex-start;
-  max-width: 80%;
+.message-role-indicator {
+  margin: 0 10px;
 }
 
 .message-content {
@@ -481,18 +527,34 @@ onMounted(() => {
 }
 
 .message-text {
-  font-size: 14px;
-  color: #FFFFFF;
-  line-height: 1.6;
-  word-wrap: break-word;
+  line-height: 1.5;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
 }
 
-.message-text strong {
-  color: #4A6CF7;
+.ai-response {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
 }
 
-.message-text em {
-  color: #8E8E93;
+.user-message {
+  white-space: pre-wrap;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.timestamp {
+  font-size: 0.65rem;
 }
 
 .loading-indicator {
@@ -509,7 +571,7 @@ onMounted(() => {
 
 .typing-dots {
   display: flex;
-  gap: 4px;
+  margin-right: 12px;
 }
 
 .dot {
@@ -541,101 +603,78 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.input-container {
-  padding: 20px;
+.input-wrapper {
+  position: relative;
 }
 
 .message-input {
-  background: #2D3447;
-  border-radius: 8px;
+  background: var(--surface-dark);
+  border-radius: 10px;
 }
 
-.message-input :deep(.v-field__outline) {
-  border-color: rgba(74, 108, 247, 0.3) !important;
-}
-
-.message-input :deep(.v-field__input) {
-  color: #FFFFFF !important;
-  font-size: 14px;
-}
-
-.message-input :deep(.v-field__append-inner) {
-  align-self: flex-end;
-  padding-bottom: 8px;
+.message-input :deep(.v-field__field) {
+  padding: 10px 14px;
 }
 
 .send-btn {
-  min-width: 40px !important;
-  height: 40px !important;
+  background: var(--primary-gradient);
+  color: white !important;
 }
 
-.input-hints {
+.quick-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #8E8E93;
+  gap: 6px;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
 }
 
-/* Custom scrollbar */
+.quick-action-chip {
+  background: var(--surface-dark) !important;
+  border: 1px solid var(--border-color) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  height: 28px;
+}
+
+.quick-action-chip:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
 .messages-container::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .messages-container::-webkit-scrollbar-track {
-  background: #2D3447;
-  border-radius: 4px;
+  background: var(--surface-dark);
 }
 
 .messages-container::-webkit-scrollbar-thumb {
-  background: #4A6CF7;
-  border-radius: 4px;
+  background: var(--primary-light);
+  border-radius: 3px;
 }
 
 .messages-container::-webkit-scrollbar-thumb:hover {
-  background: #3A5BD6;
-}
-
-/* Responsive */
-@media (max-width: 960px) {
-  .chat-container {
-    padding: 16px;
-  }
-  
-  .chat-title {
-    font-size: 24px;
-  }
-  
-  .messages-container {
-    max-height: calc(100vh - 240px);
-    padding: 16px;
-  }
-  
-  .message-wrapper.user,
-  .message-wrapper.assistant {
-    max-width: 90%;
-  }
-}
-
-@media (max-width: 600px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .clear-btn {
-    align-self: flex-end;
-  }
-  
-  .message-wrapper.user,
-  .message-wrapper.assistant {
-    max-width: 95%;
-  }
-  
-  .suggestions {
-    justify-content: flex-start;
-  }
+  background: var(--accent);
 }
 </style>
