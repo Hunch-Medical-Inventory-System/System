@@ -10,6 +10,8 @@
     "lint": "eslint . --fix"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/core": "^8.0.2",
     "@fontsource/roboto": "5.2.7",
     "@mdi/font": "7.4.47",
     "axios": "^1.13.2",

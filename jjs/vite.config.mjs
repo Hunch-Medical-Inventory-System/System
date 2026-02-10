@@ -20,7 +20,6 @@ export default defineConfig({
     Vue({
       template: { transformAssetUrls },
     }),
-    // https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin#readme
     Vuetify({
       autoImport: true,
       styles: {
@@ -30,10 +29,12 @@ export default defineConfig({
     Components(),
     Fonts({
       google: {
-        families: [{
-          name: 'Roboto',
-          styles: 'wght@100;300;400;500;700;900',
-        }],
+        families: [
+          {
+            name: 'Roboto',
+            styles: 'wght@100;300;400;500;700;900',
+          },
+        ],
       },
     }),
     AutoImport({
@@ -50,6 +51,7 @@ export default defineConfig({
       vueTemplate: true,
     }),
   ],
+
   optimizeDeps: {
     exclude: [
       'vuetify',
@@ -59,7 +61,9 @@ export default defineConfig({
       'unplugin-vue-router/data-loaders/basic',
     ],
   },
+
   define: { 'process.env': {} },
+
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('src', import.meta.url)),
@@ -74,7 +78,16 @@ export default defineConfig({
       '.vue',
     ],
   },
+
+  // 🔥 THIS IS THE IMPORTANT PART 🔥
   server: {
     port: 3000,
+    proxy: {
+      '/ollama': {
+        target: 'http://localhost:11434',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/ollama/, ''),
+      },
+    },
   },
 })
