@@ -1,72 +1,80 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-
-// Auth Store
-export const useAuthStore = defineStore('auth', () => {
-  const router = useRouter()
-  const user = ref(null)
-  const isAuthenticated = computed(() => !!user.value)
-
-  const login = (username, password) => {
-    // In production, this would be an API call
-    if (username && password) {
-      user.value = {
-        username,
-        role: 'Medical Administrator',
-        avatar: username.charAt(0).toUpperCase()
-      }
-      localStorage.setItem('user', JSON.stringify(user.value))
-      return true
-    }
-    return false
-  }
-
-  const logout = () => {
-    user.value = null
-    localStorage.removeItem('user')
-    router.push('/login')
-  }
-
-  const initialize = () => {
-    const savedUser = localStorage.getItem('user')
-    if (savedUser) {
-      user.value = JSON.parse(savedUser)
-    }
-  }
-
-  return { user, isAuthenticated, login, logout, initialize }
-})
-
-// Inventory Store
 export const useInventoryStore = defineStore('inventory', () => {
   const inventory = ref([])
   const logs = ref([])
   const alerts = ref([])
 
+  const API_BASE = "http://localhost:5000/api"
+
   const fetchInventory = async () => {
-    // Will be replaced with actual API call
-    // For now, return empty array
-    inventory.value = []
-    return []
+    try {
+      const res = await fetch(`${API_BASE}/inventory`)
+      if (!res.ok) throw new Error("Failed to fetch inventory")
+      inventory.value = await res.json()
+      return inventory.value
+    } catch (err) {
+      console.error("Inventory fetch error:", err)
+      return []
+    }
   }
 
   const fetchLogs = async () => {
-    // Will be replaced with actual API call
-    logs.value = []
-    return []
+    try {
+      const res = await fetch(`${API_BASE}/logs`)
+      if (!res.ok) throw new Error("Failed to fetch logs")
+      logs.value = await res.json()
+      return logs.value
+    } catch (err) {
+      console.error(err)
+      return []
+    }
   }
 
   const fetchAlerts = async () => {
-    // Will be replaced with actual API call
-    alerts.value = []
-    return []
+    try {
+      const res = await fetch(`${API_BASE}/alerts`)
+      if (!res.ok) throw new Error("Failed to fetch alerts")
+      alerts.value = await res.json()
+      return alerts.value
+    } catch (err) {
+      console.error(err)
+      return []
+    }
   }
 
   const checkOutItem = async (itemId, quantity, purpose) => {
-    // Will be replaced with actual API call
-    console.log(`Checking out item ${itemId}, quantity: ${quantity}, purpose: ${purpose}`)
-    return true
+    try {
+      const res = await fetch(`${API_BASE}/inventory/${itemId}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity, purpose })
+      })
+
+      if (!res.ok) throw new Error("Checkout failed")
+
+      await fetchInventory()
+      return true
+    } catch (err) {
+      console.error(err)
+      return false
+    }
+  }
+
+  const addItem = async (item) => {
+    try {
+      const res = await fetch(`${API_BASE}/inventory`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item)
+      })
+
+      if (!res.ok) throw new Error("Add item failed")
+
+      await fetchInventory()
+      return true
+    } catch (err) {
+      console.error(err)
+      return false
+    }
   }
 
   return {
@@ -76,6 +84,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     fetchInventory,
     fetchLogs,
     fetchAlerts,
-    checkOutItem
+    checkOutItem,
+    addItem
   }
 })
