@@ -4,7 +4,13 @@
     <v-row class="mb-4">
       <v-col cols="12">
         <div class="dashboard-header">
-          <h1 class="dashboard-title">Dashboard</h1>
+          <div class="header-left">
+            <h1 class="dashboard-title">Dashboard</h1>
+            <div class="status-dot" :class="serverOnline ? 'online' : 'offline'">
+              <span class="dot-pulse"></span>
+              {{ serverOnline ? 'Connected' : 'Offline' }}
+            </div>
+          </div>
           <v-btn
             color="primary"
             variant="flat"
@@ -19,16 +25,34 @@
       </v-col>
     </v-row>
 
+    <!-- Error Banner -->
+    <v-row v-if="error" class="mb-4">
+      <v-col cols="12">
+        <v-alert
+          type="error"
+          variant="tonal"
+          closable
+          @click:close="error = null"
+          density="compact"
+        >
+          {{ error }}
+        </v-alert>
+      </v-col>
+    </v-row>
+
     <!-- Stats Cards -->
     <v-row class="mb-6" dense>
       <v-col cols="12" md="3" v-for="stat in stats" :key="stat.title">
         <v-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon">
-              <v-icon :color="stat.color">{{ stat.icon }}</v-icon>
+            <div class="stat-icon" :style="{ background: `${stat.color}18` }">
+              <v-icon :color="stat.color" size="28">{{ stat.icon }}</v-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ stat.value }}</div>
+              <div class="stat-value">
+                <span v-if="!isLoading">{{ stat.value }}</span>
+                <v-skeleton-loader v-else type="text" width="40" />
+              </div>
               <div class="stat-title">{{ stat.title }}</div>
             </div>
           </div>
@@ -45,35 +69,47 @@
             <v-icon color="primary" class="mr-2">mdi-clipboard-list</v-icon>
             Inventory Status
           </v-card-title>
-          
+
           <v-card-text>
-            <div v-if="inventorySummary" class="inventory-grid">
+            <div v-if="isLoading" class="inventory-grid">
+              <div class="inventory-item" v-for="n in 4" :key="n">
+                <v-skeleton-loader type="text" />
+                <v-skeleton-loader type="heading" />
+              </div>
+            </div>
+            <div v-else-if="inventorySummary" class="inventory-grid">
               <div class="inventory-item">
                 <div class="inventory-label">Total Items</div>
-                <div class="inventory-value">{{ inventorySummary.totalItems }}</div>
+                <div class="inventory-value primary-val">{{ inventorySummary.totalItems }}</div>
               </div>
               <div class="inventory-item">
                 <div class="inventory-label">Low Stock</div>
-                <div class="inventory-value accent">{{ inventorySummary.lowStock }}</div>
+                <div class="inventory-value" :class="inventorySummary.lowStock > 0 ? 'warn-val' : 'ok-val'">
+                  {{ inventorySummary.lowStock }}
+                </div>
               </div>
               <div class="inventory-item">
                 <div class="inventory-label">Expiring Soon</div>
-                <div class="inventory-value warning">{{ inventorySummary.expiringSoon }}</div>
+                <div class="inventory-value" :class="inventorySummary.expiringSoon > 0 ? 'warn-val' : 'ok-val'">
+                  {{ inventorySummary.expiringSoon }}
+                </div>
               </div>
               <div class="inventory-item">
                 <div class="inventory-label">Critical Items</div>
-                <div class="inventory-value error">{{ inventorySummary.criticalItems }}</div>
+                <div class="inventory-value" :class="inventorySummary.criticalItems > 0 ? 'error-val' : 'ok-val'">
+                  {{ inventorySummary.criticalItems }}
+                </div>
               </div>
             </div>
             <div v-else class="no-data">
-              <v-icon color="disabled">mdi-database-off</v-icon>
+              <v-icon color="disabled" size="48">mdi-database-off</v-icon>
               <div>No inventory data</div>
             </div>
           </v-card-text>
-          
+
           <v-card-actions>
-            <v-btn color="primary" variant="text" @click="fetchInventorySummary">
-              View Details
+            <v-btn color="primary" variant="text" @click="fetchInventorySummary" :loading="isLoading">
+              Refresh Data
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -86,12 +122,19 @@
             <v-icon color="accent" class="mr-2">mdi-history</v-icon>
             Recent Activity
           </v-card-title>
-          
+
           <v-card-text class="activity-content">
-            <div v-if="recentActivity.length" class="activity-list">
+            <div v-if="isLoading" class="activity-list">
+              <div class="activity-item" v-for="n in 4" :key="n">
+                <v-skeleton-loader type="list-item-avatar" />
+              </div>
+            </div>
+            <div v-else-if="recentActivity.length" class="activity-list">
               <div v-for="activity in recentActivity" :key="activity.id" class="activity-item">
-                <div class="activity-icon" :style="{ color: getActivityColor(activity.type) }">
-                  <v-icon size="16">{{ getActivityIcon(activity.type) }}</v-icon>
+                <div class="activity-icon" :style="{ background: getActivityColor(activity.type) + '22' }">
+                  <v-icon :color="getActivityColor(activity.type)" size="16">
+                    {{ getActivityIcon(activity.type) }}
+                  </v-icon>
                 </div>
                 <div class="activity-text">
                   <span class="activity-user">{{ activity.user }}</span>
@@ -101,8 +144,8 @@
               </div>
             </div>
             <div v-else class="no-data">
-              <v-icon color="disabled">mdi-timeline-clock</v-icon>
-              <div>No activity</div>
+              <v-icon color="disabled" size="48">mdi-timeline-clock</v-icon>
+              <div>No recent activity</div>
             </div>
           </v-card-text>
         </v-card>
@@ -113,148 +156,128 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useInventoryStore } from '@/stores/inventory'
 
-const inventoryStore = useInventoryStore()
+// --------------------------------------------------
+// Config
+// --------------------------------------------------
+
+const API_BASE = 'http://localhost:8080'
+
+const api = {
+  async get(path) {
+    const response = await fetch(`${API_BASE}${path}`)
+    if (!response.ok) throw new Error(`Server error: ${response.status}`)
+    return response.json()
+  },
+  async post(path, body) {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!response.ok) throw new Error(`Server error: ${response.status}`)
+    return response.json()
+  }
+}
+
+// --------------------------------------------------
+// State
+// --------------------------------------------------
+
 const isLoading = ref(false)
+const serverOnline = ref(false)
+const error = ref(null)
 const inventorySummary = ref(null)
 const recentActivity = ref([])
 
 const stats = ref([
-  {
-    title: 'Total Items',
-    value: '0',
-    icon: 'mdi-package-variant',
-    color: '#4A6CF7'
-  },
-  {
-    title: 'Low Stock',
-    value: '0',
-    icon: 'mdi-alert-circle',
-    color: '#4A6CF7'
-  },
-  {
-    title: 'Expiring Soon',
-    value: '0',
-    icon: 'mdi-clock-alert',
-    color: '#4A6CF7'
-  },
-  {
-    title: 'Today\'s Updates',
-    value: '0',
-    icon: 'mdi-update',
-    color: '#4A6CF7'
-  }
+  { title: 'Total Items',     value: '—', icon: 'mdi-package-variant', color: '#4A6CF7' },
+  { title: 'Low Stock',       value: '—', icon: 'mdi-alert-circle',    color: '#FF9800' },
+  { title: 'Expiring Soon',   value: '—', icon: 'mdi-clock-alert',     color: '#FF5722' },
+  { title: "Today's Updates", value: '—', icon: 'mdi-update',          color: '#4CAF50' },
 ])
 
-const PYTHON_BACKEND = {
-  baseUrl: 'http://localhost:8000',
-  endpoints: {
-    inventorySummary: '/api/inventory/summary',
-    recentActivity: '/api/activity/recent'
-  }
-}
+// --------------------------------------------------
+// Data Fetching
+// --------------------------------------------------
 
-const refreshDashboard = async () => {
-  isLoading.value = true
+const checkHealth = async () => {
   try {
-    await Promise.all([
-      fetchInventorySummary(),
-      fetchRecentActivity()
-    ])
-  } catch (error) {
-    console.error('Error refreshing dashboard:', error)
-  } finally {
-    isLoading.value = false
+    await api.get('/api/health')
+    serverOnline.value = true
+  } catch {
+    serverOnline.value = false
+    error.value = 'Cannot reach server at localhost:8000 — is it running?'
   }
 }
 
 const fetchInventorySummary = async () => {
   try {
-    const response = await callPythonBackend('inventorySummary')
-    if (response) {
-      inventorySummary.value = response
-      stats.value[0].value = response.totalItems?.toString() || '0'
-      stats.value[1].value = response.lowStock?.toString() || '0'
-      stats.value[2].value = response.expiringSoon?.toString() || '0'
-      stats.value[3].value = response.recentUpdates?.toString() || '0'
-    }
-  } catch (error) {
-    console.error('Error fetching inventory summary:', error)
+    const data = await api.get('/api/inventory/summary')
+    inventorySummary.value = data
+
+    stats.value[0].value = data.totalItems?.toString()   ?? '0'
+    stats.value[1].value = data.lowStock?.toString()     ?? '0'
+    stats.value[2].value = data.expiringSoon?.toString() ?? '0'
+    stats.value[3].value = data.recentUpdates?.toString() ?? '0'
+  } catch (err) {
+    error.value = `Failed to load inventory summary: ${err.message}`
   }
 }
 
 const fetchRecentActivity = async () => {
   try {
-    const response = await callPythonBackend('recentActivity')
-    if (response && Array.isArray(response)) {
-      recentActivity.value = response.slice(0, 4)
+    const data = await api.get('/api/activity/recent?amount=6')
+    recentActivity.value = Array.isArray(data) ? data : []
+  } catch (err) {
+    error.value = `Failed to load activity: ${err.message}`
+  }
+}
+
+const refreshDashboard = async () => {
+  isLoading.value = true
+  error.value = null
+  try {
+    await checkHealth()
+    if (serverOnline.value) {
+      await Promise.all([fetchInventorySummary(), fetchRecentActivity()])
     }
-  } catch (error) {
-    console.error('Error fetching recent activity:', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
-const callPythonBackend = async (endpoint) => {
-  /*
-  const response = await fetch(`${PYTHON_BACKEND.baseUrl}${PYTHON_BACKEND.endpoints[endpoint]}`)
-  if (!response.ok) throw new Error(`Backend error: ${response.status}`)
-  return await response.json()
-  */
-  
-  return new Promise(resolve => {
-    setTimeout(() => {
-      switch (endpoint) {
-        case 'inventorySummary':
-          resolve({
-            totalItems: inventoryStore.inventory?.length || 0,
-            lowStock: inventoryStore.inventory?.filter(item => item.quantity < (item.reorderLevel || 50)).length || 0,
-            expiringSoon: inventoryStore.inventory?.filter(item => {
-              if (!item.expiryDate) return false
-              const daysUntilExpiry = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24))
-              return daysUntilExpiry <= 30
-            }).length || 0,
-            criticalItems: inventoryStore.inventory?.filter(item => item.isCritical).length || 0,
-            recentUpdates: 0
-          })
-          break
-        case 'recentActivity':
-          resolve([])
-          break
-        default:
-          resolve(null)
-      }
-    }, 300)
-  })
-}
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
 
-const getActivityIcon = (type) => {
-  const icons = {
-    add: 'mdi-plus',
-    update: 'mdi-pencil',
-    delete: 'mdi-delete',
-    checkout: 'mdi-cart',
-    restock: 'mdi-package-down'
-  }
-  return icons[type] || 'mdi-information'
-}
+const getActivityIcon = (type) => ({
+  add:      'mdi-plus',
+  update:   'mdi-pencil',
+  delete:   'mdi-delete',
+  checkout: 'mdi-cart',
+  restock:  'mdi-package-down'
+}[type] ?? 'mdi-information')
 
-const getActivityColor = (type) => {
-  const colors = {
-    add: '#4A6CF7',
-    update: '#4A6CF7',
-    delete: '#4A6CF7',
-    checkout: '#4A6CF7',
-    restock: '#4A6CF7'
-  }
-  return colors[type] || '#8E8E93'
-}
+const getActivityColor = (type) => ({
+  add:      '#4A6CF7',
+  update:   '#4CAF50',
+  delete:   '#F44336',
+  checkout: '#FF9800',
+  restock:  '#9C27B0'
+}[type] ?? '#8E8E93')
 
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
   const date = new Date(timestamp)
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return isNaN(date.getTime())
+    ? timestamp
+    : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
+
+// --------------------------------------------------
+// Init
+// --------------------------------------------------
 
 onMounted(() => {
   refreshDashboard()
@@ -269,11 +292,17 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+/* Header */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .dashboard-title {
@@ -286,12 +315,55 @@ onMounted(() => {
   margin: 0;
 }
 
+/* Server status dot */
+.status-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+
+.status-dot.online {
+  color: #4CAF50;
+  border-color: #4CAF5044;
+  background: #4CAF5011;
+}
+
+.status-dot.offline {
+  color: #F44336;
+  border-color: #F4433644;
+  background: #F4433611;
+}
+
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Stat Cards */
 .stat-card {
   background: #1A1F2E;
   border: 1px solid #2D3447;
   border-radius: 12px;
   padding: 20px;
   height: 100px;
+  transition: border-color 0.2s;
+}
+
+.stat-card:hover {
+  border-color: #4A6CF755;
 }
 
 .stat-content {
@@ -303,7 +375,6 @@ onMounted(() => {
 .stat-icon {
   width: 56px;
   height: 56px;
-  background: rgba(74, 108, 247, 0.1);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -312,14 +383,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.stat-icon .v-icon {
-  font-size: 28px;
-}
-
-.stat-info {
-  flex: 1;
-  min-width: 0;
-}
+.stat-info { flex: 1; min-width: 0; }
 
 .stat-value {
   font-size: 28px;
@@ -327,6 +391,7 @@ onMounted(() => {
   color: #FFFFFF;
   line-height: 1;
   margin-bottom: 4px;
+  min-height: 34px;
 }
 
 .stat-title {
@@ -335,6 +400,7 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* Content cards */
 .content-card {
   background: #1A1F2E;
   border: 1px solid #2D3447;
@@ -348,15 +414,7 @@ onMounted(() => {
   padding: 20px 20px 0 20px;
 }
 
-.card-title .v-icon {
-  margin-right: 8px;
-}
-
-.v-card-text {
-  padding: 20px;
-  flex: 1;
-}
-
+/* Inventory grid */
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -379,29 +437,21 @@ onMounted(() => {
 .inventory-value {
   font-size: 36px;
   font-weight: 800;
-  color: #4A6CF7;
 }
 
-.inventory-value.accent {
-  color: #4A6CF7;
-}
+.primary-val { color: #4A6CF7; }
+.ok-val      { color: #4CAF50; }
+.warn-val    { color: #FF9800; }
+.error-val   { color: #F44336; }
 
-.inventory-value.warning {
-  color: #4A6CF7;
-}
-
-.inventory-value.error {
-  color: #4A6CF7;
-}
-
+/* Activity */
 .activity-content {
   height: 280px;
+  overflow-y: auto;
   padding: 0 !important;
 }
 
-.activity-list {
-  padding: 20px;
-}
+.activity-list { padding: 20px; }
 
 .activity-item {
   display: flex;
@@ -410,14 +460,11 @@ onMounted(() => {
   border-bottom: 1px solid #2D3447;
 }
 
-.activity-item:last-child {
-  border-bottom: none;
-}
+.activity-item:last-child { border-bottom: none; }
 
 .activity-icon {
   width: 32px;
   height: 32px;
-  background: rgba(74, 108, 247, 0.1);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -448,6 +495,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* Empty state */
 .no-data {
   display: flex;
   flex-direction: column;
@@ -455,12 +503,7 @@ onMounted(() => {
   justify-content: center;
   height: 200px;
   color: #8E8E93;
-}
-
-.no-data .v-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  gap: 12px;
 }
 
 .no-data div {
@@ -470,40 +513,17 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 960px) {
-  .dashboard-container {
-    padding: 16px;
-  }
-  
-  .dashboard-title {
-    font-size: 24px;
-  }
-  
-  .stat-card {
-    padding: 16px;
-    height: 90px;
-  }
-  
-  .stat-icon {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .stat-value {
-    font-size: 24px;
-  }
-  
-  .inventory-value {
-    font-size: 28px;
-  }
+  .dashboard-container { padding: 16px; }
+  .dashboard-title { font-size: 24px; }
+  .stat-card { padding: 16px; height: 90px; }
+  .stat-icon { width: 48px; height: 48px; }
+  .stat-value { font-size: 24px; }
+  .inventory-value { font-size: 28px; }
 }
 
 @media (max-width: 600px) {
-  .inventory-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .activity-text {
-    font-size: 13px;
-  }
+  .inventory-grid { grid-template-columns: 1fr; }
+  .activity-text { font-size: 13px; }
+  .header-left { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 </style>
