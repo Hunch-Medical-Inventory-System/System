@@ -1,90 +1,74 @@
-export const useInventoryStore = defineStore('inventory', () => {
-  const inventory = ref([])
-  const logs = ref([])
-  const alerts = ref([])
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref(null)
+  const token = ref(localStorage.getItem('token') || null)
+  const loading = ref(false)
 
   const API_BASE = "http://localhost:5000/api"
 
-  const fetchInventory = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/inventory`)
-      if (!res.ok) throw new Error("Failed to fetch inventory")
-      inventory.value = await res.json()
-      return inventory.value
-    } catch (err) {
-      console.error("Inventory fetch error:", err)
-      return []
-    }
-  }
+  const isAuthenticated = computed(() => !!token.value)
 
-  const fetchLogs = async () => {
+  const login = async (email, password) => {
+    loading.value = true
     try {
-      const res = await fetch(`${API_BASE}/logs`)
-      if (!res.ok) throw new Error("Failed to fetch logs")
-      logs.value = await res.json()
-      return logs.value
-    } catch (err) {
-      console.error(err)
-      return []
-    }
-  }
-
-  const fetchAlerts = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/alerts`)
-      if (!res.ok) throw new Error("Failed to fetch alerts")
-      alerts.value = await res.json()
-      return alerts.value
-    } catch (err) {
-      console.error(err)
-      return []
-    }
-  }
-
-  const checkOutItem = async (itemId, quantity, purpose) => {
-    try {
-      const res = await fetch(`${API_BASE}/inventory/${itemId}/checkout`, {
+      const res = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity, purpose })
+        body: JSON.stringify({ email, password })
       })
 
-      if (!res.ok) throw new Error("Checkout failed")
+      if (!res.ok) throw new Error("Login failed")
 
-      await fetchInventory()
+      const data = await res.json()
+
+      token.value = data.token
+      user.value = data.user
+
+      localStorage.setItem("token", data.token)
+
       return true
     } catch (err) {
-      console.error(err)
+      console.error("Login error:", err)
       return false
+    } finally {
+      loading.value = false
     }
   }
 
-  const addItem = async (item) => {
+  const logout = () => {
+    token.value = null
+    user.value = null
+    localStorage.removeItem("token")
+  }
+
+  const fetchUser = async () => {
+    if (!token.value) return
+
     try {
-      const res = await fetch(`${API_BASE}/inventory`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item)
+      const res = await fetch(`${API_BASE}/me`, {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
       })
 
-      if (!res.ok) throw new Error("Add item failed")
+      if (!res.ok) throw new Error("Failed to fetch user")
 
-      await fetchInventory()
-      return true
+      user.value = await res.json()
     } catch (err) {
-      console.error(err)
-      return false
+      console.error("User fetch error:", err)
+      logout()
     }
   }
 
   return {
-    inventory,
-    logs,
-    alerts,
-    fetchInventory,
-    fetchLogs,
-    fetchAlerts,
-    checkOutItem,
-    addItem
+    user,
+    token,
+    loading,
+    isAuthenticated,
+    login,
+    logout,
+    fetchUser
   }
 })
