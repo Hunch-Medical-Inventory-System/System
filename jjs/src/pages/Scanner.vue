@@ -1,183 +1,389 @@
 <template>
-  <v-container fluid>
-    <v-row>
+  <v-container fluid class="px-4 px-sm-6">
+    <!-- Header Section -->
+    <v-row class="mb-6 mb-md-8">
       <v-col cols="12">
-        <div class="mb-8">
-          <h1 class="gradient-text text-h3 font-weight-bold mb-2">
-            NFC Scanner
-          </h1>
-          <p class="text-body-1 text-medium-emphasis">
-            Scan medicine NFC tags to check out items in real-time
-          </p>
+        <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between">
+          <div>
+            <h1 class="text-h4 text-sm-h3 font-weight-bold mb-1">
+              <span class="gradient-text">NFC Scanner</span>
+            </h1>
+            <p class="text-body-2 text-medium-emphasis">
+              Scan NFC tags to check out medications
+            </p>
+          </div>
+          
+          <!-- Quick Stats -->
+          <v-chip-group class="mt-3 mt-sm-0">
+            <v-chip color="primary" variant="flat" size="small">
+              <v-icon start size="18">mdi-nfc</v-icon>
+              Scanner Ready
+            </v-chip>
+            <v-chip color="success" variant="flat" size="small">
+              <v-icon start size="18">mdi-check-circle</v-icon>
+              {{ scansToday }} Today
+            </v-chip>
+          </v-chip-group>
         </div>
       </v-col>
     </v-row>
 
+    <!-- Error Banner -->
+    <v-row v-if="error" class="mb-4">
+      <v-col cols="12">
+        <v-alert type="error" variant="tonal" closable @click:close="error = null" density="compact">
+          {{ error }}
+        </v-alert>
+      </v-col>
+    </v-row>
+
+    <!-- Main Scanner Card -->
     <v-row>
-      <v-col cols="12" md="8" lg="6" class="mx-auto">
-        <v-card class="gradient-card pa-8 text-center">
-          <div
-            class="scanner-animation mx-auto mb-6"
-            :class="{ scanning: isScanning }"
-          >
-            <v-icon size="64" color="white">mdi-nfc</v-icon>
-          </div>
-
-          <h3 class="gradient-text text-h4 font-weight-bold mb-4">
-            {{ scannerStatus }}
-          </h3>
-
-          <p class="text-body-1 text-medium-emphasis mb-6">
-            {{ scannerMessage }}
-          </p>
-
-          <v-progress-linear
-            v-if="isScanning"
-            v-model="scanProgress"
-            color="primary"
-            height="8"
-            rounded
-            class="mb-6"
-          />
-
-          <v-alert
-            v-if="scannerFeedback"
-            variant="tonal"
-            color="info"
-            class="mb-6"
-          >
-            <v-icon start>mdi-information</v-icon>
-            {{ scannerFeedback }}
-          </v-alert>
-
-          <v-btn
-            :color="isScanning ? 'error' : 'primary'"
-            size="x-large"
-            :prepend-icon="isScanning ? 'mdi-stop' : 'mdi-play'"
-            @click="toggleScan"
-            :loading="loading"
-            class="mb-6"
-          >
-            {{ isScanning ? 'Stop Scanning' : 'Start Scanning' }}
-          </v-btn>
-
-          <v-divider class="my-6" />
-
-          <div class="d-flex justify-center align-center flex-wrap gap-4">
+      <v-col cols="12" lg="8" xl="6" class="mx-auto">
+        <v-card class="scanner-card" elevation="0">
+          <!-- Scanner Header -->
+          <v-card-item>
             <div class="d-flex align-center">
-              <v-icon color="primary" class="mr-2">mdi-microchip</v-icon>
-              <span class="text-body-2">Last scan: {{ lastScanTime }}</span>
+              <v-avatar color="primary" variant="tonal" size="40" class="mr-3">
+                <v-icon color="primary">mdi-nfc</v-icon>
+              </v-avatar>
+              <div>
+                <v-card-title class="text-h6 font-weight-bold pa-0">
+                  NFC Scanner Interface
+                </v-card-title>
+                <v-card-subtitle class="pa-0 text-caption">
+                  {{ scannerStatus }}
+                </v-card-subtitle>
+              </div>
             </div>
-            <div class="d-flex align-center">
-              <v-icon color="primary" class="mr-2">mdi-database</v-icon>
-              <span class="text-body-2">Scans today: {{ scansToday }}</span>
+          </v-card-item>
+
+          <v-divider></v-divider>
+
+          <!-- Scanner Body -->
+          <v-card-text class="text-center py-6 py-md-8">
+            <!-- Scanner Animation -->
+            <div class="scanner-container mb-6">
+              <div class="scanner-ring" :class="{ 'scanning-active': isScanning }">
+                <div class="scanner-inner">
+                  <v-icon 
+                    :size="isScanning ? 56 : 48" 
+                    :color="isScanning ? 'primary' : 'grey'"
+                    class="scanner-icon"
+                    :class="{ 'pulse': isScanning }"
+                  >
+                    mdi-nfc
+                  </v-icon>
+                </div>
+              </div>
             </div>
-          </div>
+
+            <!-- Status Messages -->
+            <div class="mb-6">
+              <div class="text-h6 font-weight-medium mb-2">
+                {{ scannerMessage }}
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ scannerFeedback }}
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <v-expand-transition>
+              <div v-if="isScanning" class="mb-6">
+                <v-progress-linear
+                  v-model="scanProgress"
+                  color="primary"
+                  height="6"
+                  rounded
+                  striped
+                >
+                  <template v-slot:default>
+                    <span class="text-caption font-weight-bold">
+                      {{ Math.round(scanProgress) }}%
+                    </span>
+                  </template>
+                </v-progress-linear>
+              </div>
+            </v-expand-transition>
+
+            <!-- Action Button -->
+            <v-btn
+              :color="isScanning ? 'error' : 'primary'"
+              size="x-large"
+              block
+              :prepend-icon="isScanning ? 'mdi-stop-circle' : 'mdi-play-circle'"
+              @click="toggleScan"
+              :loading="loading"
+              class="mb-4"
+              height="56"
+            >
+              {{ isScanning ? 'Stop Scanning' : 'Start Scanning' }}
+            </v-btn>
+
+            <!-- Manual Entry Option -->
+            <div class="text-center">
+              <v-btn
+                variant="text"
+                color="primary"
+                size="small"
+                prepend-icon="mdi-pencil"
+                @click="openManualEntry"
+                :disabled="isScanning"
+              >
+                Manual Entry
+              </v-btn>
+            </div>
+
+            <!-- Scanner Info -->
+            <div class="d-flex flex-wrap justify-center gap-4 mt-4">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey" class="mr-1">mdi-clock-outline</v-icon>
+                <span class="text-caption">Last scan: {{ lastScanTime || 'Never' }}</span>
+              </div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey" class="mr-1">mdi-wifi</v-icon>
+                <span class="text-caption">Connected</span>
+              </div>
+            </div>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
 
-    <v-row class="mt-8">
-      <v-col cols="12">
-        <div class="mb-6">
-          <h3 class="gradient-text text-h4 font-weight-bold mb-2">
-            Test Medications
-          </h3>
-          <p class="text-body-1 text-medium-emphasis">
-            Test the scanner with these medications
-          </p>
-        </div>
-
-        <div class="d-flex flex-wrap gap-3">
-          <v-btn
-            v-for="med in testMedications"
-            :key="med"
-            variant="tonal"
-            @click="testScan(med)"
-            :disabled="isScanning"
-          >
-            <v-icon start>mdi-capsule</v-icon>
-            {{ med }}
-          </v-btn>
-        </div>
-      </v-col>
-    </v-row>
-
     <!-- Scan Result Dialog -->
-    <v-dialog v-model="scanResultDialog" max-width="500">
-      <v-card>
-        <v-card-title>Medication Found</v-card-title>
-        <v-card-text>
-          <v-form ref="checkoutForm">
-            <v-text-field
-              v-model="scannedItem.name"
-              label="Medication"
-              readonly
-              class="mb-4"
-            />
+    <v-dialog v-model="scanResultDialog" max-width="500" persistent>
+      <v-card class="dialog-card">
+        <v-card-item class="bg-primary-light">
+          <div class="d-flex align-center">
+            <v-avatar color="primary" size="40" class="mr-3">
+              <v-icon color="white">mdi-pill</v-icon>
+            </v-avatar>
+            <div>
+              <v-card-title class="text-h6 pa-0">
+                {{ isManualEntry ? 'Manual Checkout' : 'Medication Found' }}
+              </v-card-title>
+              <v-card-subtitle class="pa-0 text-caption">
+                {{ isManualEntry ? 'Select medication to check out' : 'Enter checkout details' }}
+              </v-card-subtitle>
+            </div>
+          </div>
+        </v-card-item>
+
+        <v-card-text class="pt-4">
+          <v-form ref="checkoutForm" @submit.prevent="confirmScanCheckout">
+            <!-- Medication Dropdown - Real database items -->
+            <v-autocomplete
+              v-model="selectedItem"
+              :items="inventory"
+              label="Select Medication"
+              placeholder="Search by name or UPID"
+              variant="outlined"
+              density="comfortable"
+              class="mb-3"
+              :rules="[v => !!v || 'Medication is required']"
+              clearable
+              return-object
+              item-title="name"
+              item-value="upid"
+              :disabled="!isManualEntry && selectedItem"
+              :loading="loading"
+            >
+              <template v-slot:prepend-inner>
+                <v-icon size="small" color="primary">mdi-pill</v-icon>
+              </template>
+              <template v-slot:item="{ props, item }">
+                <v-list-item v-bind="props" :title="item.raw.name">
+                  <template v-slot:subtitle>
+                    <div class="d-flex align-center">
+                      <span class="text-caption">UPID: {{ item.raw.upid }} | Stock: {{ item.raw.quantity }}</span>
+                    </div>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
+
+            <!-- Selected Item Info -->
+            <v-expand-transition>
+              <v-alert
+                v-if="selectedItem"
+                :color="selectedItem.quantity < 20 ? 'warning' : 'info'"
+                variant="tonal"
+                class="mb-3"
+                density="compact"
+              >
+                <div class="d-flex align-center justify-space-between">
+                  <div>
+                    <div><strong>Location:</strong> {{ selectedItem.location }}</div>
+                    <div><strong>Available:</strong> {{ selectedItem.quantity }} units</div>
+                    <div v-if="selectedItem.expiration"><strong>Expires:</strong> {{ formatDate(selectedItem.expiration) }}</div>
+                  </div>
+                </div>
+              </v-alert>
+            </v-expand-transition>
+
+            <!-- Quantity Input -->
             <v-text-field
               v-model="checkoutQuantity"
               label="Quantity"
               type="number"
               :rules="[
                 v => !!v || 'Quantity is required',
-                v => v > 0 || 'Quantity must be positive'
+                v => v > 0 || 'Must be positive',
+                v => v <= (selectedItem?.quantity || 0) || `Only ${selectedItem?.quantity || 0} available`
               ]"
-              class="mb-4"
-            />
-            <v-text-field
+              variant="outlined"
+              density="comfortable"
+              min="1"
+              :max="selectedItem?.quantity"
+              class="mb-3"
+            >
+              <template v-slot:prepend-inner>
+                <v-icon size="small" color="primary">mdi-counter</v-icon>
+              </template>
+            </v-text-field>
+
+            <!-- Purpose/Notes -->
+            <v-textarea
               v-model="checkoutPurpose"
-              label="Purpose/Notes"
-              class="mb-4"
-            />
+              label="Purpose / Notes (Optional)"
+              variant="outlined"
+              density="comfortable"
+              rows="2"
+              auto-grow
+              class="mb-3"
+            >
+              <template v-slot:prepend-inner>
+                <v-icon size="small" color="primary">mdi-note-text</v-icon>
+              </template>
+            </v-textarea>
+
+            <!-- Success Message -->
+            <v-expand-transition>
+              <v-alert
+                v-if="showSuccess"
+                type="success"
+                variant="tonal"
+                class="mt-3"
+              >
+                Checkout completed successfully!
+              </v-alert>
+            </v-expand-transition>
           </v-form>
         </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="scanResultDialog = false">Cancel</v-btn>
+
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            variant="text"
+            @click="closeDialog"
+            :disabled="processingCheckout"
+          >
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
             @click="confirmScanCheckout"
             :loading="processingCheckout"
+            variant="flat"
           >
+            <v-icon start>mdi-checkout</v-icon>
             Check Out
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Success Snackbar -->
+    <v-snackbar
+      v-model="showSnackbar"
+      :timeout="3000"
+      color="success"
+      location="top"
+    >
+      <div class="d-flex align-center">
+        <v-icon class="mr-3">mdi-check-circle</v-icon>
+        <span>{{ snackbarMessage }}</span>
+      </div>
+    </v-snackbar>
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useInventoryStore } from '@/stores/main'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 
-const inventoryStore = useInventoryStore()
+const API_BASE = 'http://127.0.0.1:8080'
+
+const api = {
+  async get(path) {
+    const res = await fetch(`${API_BASE}${path}`)
+    if (!res.ok) throw new Error(`Server error: ${res.status}`)
+    return res.json()
+  },
+  async post(path, body) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error(`Server error: ${res.status}`)
+    return res.json()
+  }
+}
+
+// State
 const loading = ref(false)
+const processingCheckout = ref(false)
+const error = ref(null)
+
 const isScanning = ref(false)
 const scanProgress = ref(0)
-const scannerStatus = ref('Ready to Scan')
-const scannerMessage = ref('Place the medicine NFC tag near your device to automatically identify and check out items')
-const scannerFeedback = ref('Scanner will automatically detect compatible NFC tags')
+const scannerStatus = ref('Scanner Ready')
+const scannerMessage = ref('Place NFC tag near device')
+const scannerFeedback = ref('Waiting for NFC tag...')
 const scanResultDialog = ref(false)
-const processingCheckout = ref(false)
 const checkoutForm = ref(null)
+const showSnackbar = ref(false)
+const snackbarMessage = ref('')
+const showSuccess = ref(false)
+const isManualEntry = ref(false)
 
-const scannedItem = ref({})
+const inventory = ref([])
+const selectedItem = ref(null)
 const checkoutQuantity = ref(1)
 const checkoutPurpose = ref('')
 
-const lastScanTime = ref('Never')
-const scansToday = ref(0)
-const testMedications = [
-  'Aspirin 100mg',
-  'Amoxicillin 500mg',
-  'Insulin Glargine',
-  'Metformin 850mg'
-]
+const lastScanTime = ref('')
+const scansToday = ref(parseInt(localStorage.getItem('scansToday') || '0'))
 
-const scanInterval = ref(null)
+let scanInterval = null
 
+// Helper functions
+const formatDate = (date) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString()
+}
+
+const getQuantityColor = (qty) => {
+  if (qty < 20) return 'error'
+  if (qty < 50) return 'warning'
+  return 'success'
+}
+
+// Fetch inventory from database
+const fetchInventory = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    inventory.value = await api.get('/api/inventory?amount=1000&offset=0')
+  } catch (err) {
+    error.value = `Failed to load inventory.. BOY FIX TS RIGHT NOW OR ELSE YOU FAG - ${err.message}`
+  } finally {
+    loading.value = false
+  }
+}
+
+// Scanner functions
 const toggleScan = async () => {
   if (isScanning.value) {
     stopScanning()
@@ -189,79 +395,73 @@ const toggleScan = async () => {
 const startScanning = async () => {
   isScanning.value = true
   scannerStatus.value = 'Scanning...'
-  scannerMessage.value = 'Move NFC tag closer to your device'
-  scannerFeedback.value = 'Searching for NFC tags...'
+  scannerMessage.value = 'NFC tag detected'
+  scannerFeedback.value = 'Reading medication data...'
   scanProgress.value = 0
-  
-  // Check if Web NFC is available
-  if (!('NDEFReader' in window)) {
-    scannerFeedback.value = 'NFC not supported in this browser. Using simulation mode.'
-  }
+  isManualEntry.value = false
   
   // Simulate scanning progress
-  scanInterval.value = setInterval(() => {
+  scanInterval = setInterval(() => {
     if (scanProgress.value < 100) {
-      scanProgress.value += 10
+      scanProgress.value += 5
     }
-  }, 300)
+  }, 50)
   
-  // Simulate finding a tag after 3 seconds
+  // Simulate finding a tag after 2 seconds
   setTimeout(() => {
     if (isScanning.value) {
-      clearInterval(scanInterval.value)
+      clearInterval(scanInterval)
       scanProgress.value = 100
       
-      // For demo: pick a random inventory item
-      if (inventoryStore.inventory.length > 0) {
-        const randomIndex = Math.floor(Math.random() * inventoryStore.inventory.length)
-        handleScanResult(inventoryStore.inventory[randomIndex])
+      // Get real item from inventory
+      if (inventory.value.length > 0) {
+        const randomItem = inventory.value[Math.floor(Math.random() * inventory.value.length)]
+        handleScanResult(randomItem)
+      } else {
+        scannerFeedback.value = 'No items in inventory'
+        setTimeout(() => {
+          scannerFeedback.value = 'Waiting for NFC tag...'
+        }, 2000)
       }
       
       stopScanning()
     }
-  }, 3000)
+  }, 2000)
 }
 
 const stopScanning = () => {
   isScanning.value = false
-  scannerStatus.value = 'Ready to Scan'
-  scannerMessage.value = 'Place the medicine NFC tag near your device to automatically identify and check out items'
-  scannerFeedback.value = 'Scanner will automatically detect compatible NFC tags'
+  scannerStatus.value = 'Scanner Ready'
+  scannerMessage.value = 'Place NFC tag near device'
+  scannerFeedback.value = 'Waiting for NFC tag...'
   scanProgress.value = 0
   
-  if (scanInterval.value) {
-    clearInterval(scanInterval.value)
-    scanInterval.value = null
+  if (scanInterval) {
+    clearInterval(scanInterval)
+    scanInterval = null
   }
 }
 
-const testScan = (medicationName) => {
-  const item = inventoryStore.inventory.find(i => 
-    i.name.toLowerCase().includes(medicationName.toLowerCase())
-  )
-  
-  if (item) {
-    handleScanResult(item)
-  } else {
-    scannerStatus.value = 'Medication Not Found'
-    scannerMessage.value = `${medicationName} not found in inventory`
-    
-    // Simulate adding new medication
-    setTimeout(() => {
-      scannerStatus.value = 'Ready to Scan'
-      scannerMessage.value = 'Place the medicine NFC tag near your device to automatically identify and check out items'
-    }, 2000)
-  }
+const openManualEntry = () => {
+  isManualEntry.value = true
+  selectedItem.value = null
+  checkoutQuantity.value = 1
+  checkoutPurpose.value = ''
+  showSuccess.value = false
+  scanResultDialog.value = true
 }
 
 const handleScanResult = (item) => {
-  scannedItem.value = { ...item }
+  selectedItem.value = item
   checkoutQuantity.value = 1
   checkoutPurpose.value = ''
+  showSuccess.value = false
+  isManualEntry.value = false
   
   // Update stats
   scansToday.value++
-  lastScanTime.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  localStorage.setItem('scansToday', scansToday.value.toString())
+  lastScanTime.value = new Date().toLocaleTimeString()
   
   scanResultDialog.value = true
 }
@@ -270,57 +470,167 @@ const confirmScanCheckout = async () => {
   const { valid } = await checkoutForm.value.validate()
   if (!valid) return
 
+  if (!selectedItem.value) {
+    error.value = 'Please select a medication'
+    return
+  }
+
   processingCheckout.value = true
+  error.value = null
   
-  const success = await inventoryStore.checkOutItem(
-    scannedItem.value.id,
-    checkoutQuantity.value,
-    checkoutPurpose.value
-  )
-  
-  if (success) {
-    scanResultDialog.value = false
-    scannerStatus.value = 'Checkout Successful'
-    scannerMessage.value = `${scannedItem.value.name} checked out successfully`
+  try {
+    // Call the actual API to remove inventory
+    await api.post('/api/inventory/remove', {
+      userid: 'admin',
+      upid: selectedItem.value.upid,
+      location: selectedItem.value.location,
+      quantity: parseInt(checkoutQuantity.value),
+      expiration: selectedItem.value.expiration
+    })
+    
+    showSuccess.value = true
+    
+    // Refresh inventory
+    await fetchInventory()
     
     setTimeout(() => {
-      scannerStatus.value = 'Ready to Scan'
-      scannerMessage.value = 'Place the medicine NFC tag near your device to automatically identify and check out items'
-    }, 2000)
+      closeDialog()
+      
+      snackbarMessage.value = `${checkoutQuantity.value}x ${selectedItem.value.name} checked out`
+      showSnackbar.value = true
+      
+      processingCheckout.value = false
+    }, 1000)
+  } catch (err) {
+    error.value = `Failed to check out item: ${err.message}`
+    processingCheckout.value = false
   }
-  
-  processingCheckout.value = false
 }
 
-onMounted(() => {
-  // Load scan stats from localStorage
-  const stats = JSON.parse(localStorage.getItem('scanStats') || '{}')
-  lastScanTime.value = stats.lastScanTime || 'Never'
-  scansToday.value = stats.scansToday || 0
+const closeDialog = () => {
+  scanResultDialog.value = false
+  showSuccess.value = false
+  isManualEntry.value = false
+  selectedItem.value = null
+  checkoutQuantity.value = 1
+  checkoutPurpose.value = ''
+}
+
+// Watch selected item to reset quantity if needed
+watch(selectedItem, (newItem) => {
+  if (newItem && checkoutQuantity.value > newItem.quantity) {
+    checkoutQuantity.value = newItem.quantity
+  }
 })
 
-// Clean up interval on unmount
-import { onUnmounted } from 'vue'
+onMounted(() => {
+  fetchInventory()
+  scannerStatus.value = 'Scanner Ready'
+})
+
 onUnmounted(() => {
-  if (scanInterval.value) {
-    clearInterval(scanInterval.value)
+  if (scanInterval) {
+    clearInterval(scanInterval)
   }
 })
 </script>
 
 <style scoped>
-.scanner-animation {
-  width: 200px;
-  height: 200px;
+.scanner-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+  border-radius: 24px;
+  transition: all 0.3s ease;
+}
+
+.scanner-card:hover {
+  border-color: rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 8px 24px rgba(var(--v-theme-primary), 0.08);
+}
+
+.scanner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scanner-ring {
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
-  background: var(--accent-gradient);
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.05) 0%, rgba(var(--v-theme-primary), 0.1) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
+  position: relative;
+  transition: all 0.3s ease;
 }
 
-.scanner-animation.scanning {
-  animation: scannerPulse 2s ease-in-out infinite;
+.scanner-ring.scanning-active {
+  animation: ringPulse 2s infinite;
+}
+
+.scanner-inner {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.scanner-icon.pulse {
+  animation: iconPulse 2s infinite;
+}
+
+.dialog-card {
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.bg-primary-light {
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+@keyframes ringPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-primary), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(var(--v-theme-primary), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-primary), 0);
+  }
+}
+
+@keyframes iconPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .scanner-ring {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .scanner-inner {
+    width: 100px;
+    height: 100px;
+  }
 }
 </style>
