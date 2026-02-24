@@ -76,5 +76,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // listens on 0.0.0.0, accepts connections from other devices
   },
 })

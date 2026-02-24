@@ -32,12 +32,15 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vue dev server
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://100.97.185.98:3000",  # your Tailscale IP
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # --------------------------------------------------
 # Database Connection
 # --------------------------------------------------

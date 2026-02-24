@@ -127,7 +127,7 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
 
-const API_BASE = 'http://127.0.0.1:8080'
+const API_BASE = 'http://100.97.185.98:8080'
 
 // --------------------------------------------------
 // State
