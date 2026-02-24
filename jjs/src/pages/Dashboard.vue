@@ -161,7 +161,7 @@ import { ref, onMounted } from 'vue'
 // Config
 // --------------------------------------------------
 
-const API_BASE = 'http://localhost:8080'
+const API_BASE = 'http://100.97.185.98:8080'
 
 const api = {
   async get(path) {
