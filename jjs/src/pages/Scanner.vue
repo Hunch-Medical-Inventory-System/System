@@ -89,32 +89,6 @@
             </div>
 
             <!-- Selected Medication Display -->
-            <v-expand-transition>
-              <v-alert
-                v-if="selectedMedication"
-                :color="getMedicationColor(selectedMedication.upid)"
-                variant="tonal"
-                class="mb-4"
-              >
-                <div class="d-flex align-center justify-space-between">
-                  <div class="d-flex align-center">
-                    <v-avatar :color="getMedicationColor(selectedMedication.upid)" size="32" class="mr-3">
-                      <v-icon :color="getMedicationColor(selectedMedication.upid)">mdi-pill</v-icon>
-                    </v-avatar>
-                    <div class="text-left">
-                      <div class="font-weight-bold">{{ selectedMedication.name }}</div>
-                      <div class="text-caption">UPID: {{ selectedMedication.upid }} | Stock: {{ selectedMedication.quantity }}</div>
-                    </div>
-                  </div>
-                  <v-btn
-                    icon="mdi-close"
-                    variant="text"
-                    size="small"
-                    @click="selectedMedication = null"
-                  ></v-btn>
-                </div>
-              </v-alert>
-            </v-expand-transition>
 
             <!-- Progress Bar -->
             <v-expand-transition>
@@ -193,7 +167,7 @@
               <v-spacer></v-spacer>
               <v-chip v-if="selectedMedication" color="success" size="small">
                 <v-icon start size="14">mdi-check</v-icon>
-                Ready to scan
+                Waiting...
               </v-chip>
             </div>
           </v-card-item>
@@ -482,7 +456,7 @@ const selectMedication = (medication) => {
     scannerFeedback.value = 'Waiting for NFC tag...'
   } else {
     selectedMedication.value = medication
-    scannerMessage.value = `Ready to scan ${medication.name}`
+    scannerMessage.value = `Ready to scan`
     scannerFeedback.value = 'Click Start Scanning to begin'
   }
 }
@@ -562,7 +536,7 @@ const stopScanning = () => {
   scannerStatus.value = 'Scanner Ready'
   
   if (selectedMedication.value) {
-    scannerMessage.value = `Ready to scan ${selectedMedication.value.name}`
+    scannerMessage.value = `Ready to scan`
     scannerFeedback.value = 'Click Start Scanning to begin'
   } else {
     scannerMessage.value = 'Place NFC tag near device'
@@ -669,7 +643,7 @@ watch(selectedMedication, (newMedication) => {
       scannerFeedback.value = 'Please select another medication'
       error.value = `${newMedication.name} is out of stock`
     } else {
-      scannerMessage.value = `Ready to scan ${newMedication.name}`
+      scannerMessage.value = `Ready to scan`
       scannerFeedback.value = 'Click Start Scanning to begin'
     }
   } else if (!newMedication && !isScanning.value) {
