@@ -88,6 +88,34 @@
               </div>
             </div>
 
+            <!-- Selected Medication Display -->
+            <v-expand-transition>
+              <v-alert
+                v-if="selectedMedication"
+                :color="getMedicationColor(selectedMedication.upid)"
+                variant="tonal"
+                class="mb-4"
+              >
+                <div class="d-flex align-center justify-space-between">
+                  <div class="d-flex align-center">
+                    <v-avatar :color="getMedicationColor(selectedMedication.upid)" size="32" class="mr-3">
+                      <v-icon :color="getMedicationColor(selectedMedication.upid)">mdi-pill</v-icon>
+                    </v-avatar>
+                    <div class="text-left">
+                      <div class="font-weight-bold">{{ selectedMedication.name }}</div>
+                      <div class="text-caption">UPID: {{ selectedMedication.upid }} | Stock: {{ selectedMedication.quantity }}</div>
+                    </div>
+                  </div>
+                  <v-btn
+                    icon="mdi-close"
+                    variant="text"
+                    size="small"
+                    @click="selectedMedication = null"
+                  ></v-btn>
+                </div>
+              </v-alert>
+            </v-expand-transition>
+
             <!-- Progress Bar -->
             <v-expand-transition>
               <div v-if="isScanning" class="mb-6">
@@ -117,6 +145,7 @@
               :loading="loading"
               class="mb-4"
               height="56"
+              :disabled="!selectedMedication && !isScanning"
             >
               {{ isScanning ? 'Stop Scanning' : 'Start Scanning' }}
             </v-btn>
@@ -151,20 +180,110 @@
       </v-col>
     </v-row>
 
+    <!-- Medication Selection Panel (From Database) -->
+    <v-row class="mt-6">
+      <v-col cols="12" lg="8" xl="6" class="mx-auto">
+        <v-card class="medication-panel" elevation="0">
+          <v-card-item class="pb-2">
+            <div class="d-flex align-center">
+              <v-icon color="primary" class="mr-2">mdi-pill</v-icon>
+              <v-card-title class="text-subtitle-1 font-weight-bold pa-0">
+                Select Medication to Scan
+              </v-card-title>
+              <v-spacer></v-spacer>
+              <v-chip v-if="selectedMedication" color="success" size="small">
+                <v-icon start size="14">mdi-check</v-icon>
+                Ready to scan
+              </v-chip>
+            </div>
+          </v-card-item>
+          
+          <v-card-text>
+            <!-- Loading State -->
+            <div v-if="loading" class="text-center py-4">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <div class="text-caption mt-2">Loading medications...</div>
+            </div>
+
+            <!-- Error State -->
+            <v-alert
+              v-else-if="error"
+              type="error"
+              variant="tonal"
+              class="mb-3"
+            >
+              {{ error }}
+            </v-alert>
+
+            <!-- Medication Grid -->
+            <v-row v-else dense>
+              <v-col cols="6" sm="3" v-for="item in filteredMedications" :key="item.upid">
+                <v-hover v-slot="{ isHovering, props }">
+                  <v-card
+                    v-bind="props"
+                    :class="['medication-button', { 
+                      'medication-button-selected': selectedMedication?.upid === item.upid,
+                      'low-stock': item.quantity < 20
+                    }]"
+                    :elevation="isHovering ? 4 : 1"
+                    @click="selectMedication(item)"
+                  >
+                    <div class="text-center pa-3">
+                      <v-avatar
+                        :color="getMedicationColor(item.upid)"
+                        size="48"
+                        class="mb-2"
+                        variant="tonal"
+                      >
+                        <v-icon :color="getMedicationColor(item.upid)" size="24">mdi-pill</v-icon>
+                      </v-avatar>
+                      <div class="font-weight-medium">{{ item.name }}</div>
+                      <div class="text-caption text-medium-emphasis mt-1">
+                        UPID: {{ item.upid }}
+                      </div>
+                      <v-chip
+                        :color="item.quantity < 20 ? 'error' : 'success'"
+                        size="x-small"
+                        class="mt-2"
+                      >
+                        Stock: {{ item.quantity }}
+                      </v-chip>
+                    </div>
+                  </v-card>
+                </v-hover>
+              </v-col>
+            </v-row>
+
+            <!-- No Medications Message -->
+            <div v-if="!loading && filteredMedications.length === 0" class="text-center py-4">
+              <v-icon size="48" color="grey" class="mb-2">mdi-pill-off</v-icon>
+              <div class="text-body-2">No medications found in database</div>
+            </div>
+
+            <!-- Quick Info -->
+            <v-divider class="my-4"></v-divider>
+            <div class="text-caption text-medium-emphasis text-center">
+              Select a medication above, then click Start Scanning to check it out
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <!-- Scan Result Dialog -->
     <v-dialog v-model="scanResultDialog" max-width="500" persistent>
       <v-card class="dialog-card">
         <v-card-item class="bg-primary-light">
           <div class="d-flex align-center">
-            <v-avatar color="primary" size="40" class="mr-3">
+            <v-avatar :color="getMedicationColor(selectedMedication?.upid)" size="40" class="mr-3">
               <v-icon color="white">mdi-pill</v-icon>
             </v-avatar>
             <div>
               <v-card-title class="text-h6 pa-0">
-                {{ isManualEntry ? 'Manual Checkout' : 'Medication Found' }}
+                Check Out {{ selectedMedication?.name }}
               </v-card-title>
               <v-card-subtitle class="pa-0 text-caption">
-                {{ isManualEntry ? 'Select medication to check out' : 'Enter checkout details' }}
+                UPID: {{ selectedMedication?.upid }}
               </v-card-subtitle>
             </div>
           </div>
@@ -172,55 +291,20 @@
 
         <v-card-text class="pt-4">
           <v-form ref="checkoutForm" @submit.prevent="confirmScanCheckout">
-            <!-- Medication Dropdown - Real database items -->
-            <v-autocomplete
-              v-model="selectedItem"
-              :items="inventory"
-              label="Select Medication"
-              placeholder="Search by name or UPID"
-              variant="outlined"
-              density="comfortable"
-              class="mb-3"
-              :rules="[v => !!v || 'Medication is required']"
-              clearable
-              return-object
-              item-title="name"
-              item-value="upid"
-              :disabled="!isManualEntry && selectedItem"
-              :loading="loading"
-            >
-              <template v-slot:prepend-inner>
-                <v-icon size="small" color="primary">mdi-pill</v-icon>
-              </template>
-              <template v-slot:item="{ props, item }">
-                <v-list-item v-bind="props" :title="item.raw.name">
-                  <template v-slot:subtitle>
-                    <div class="d-flex align-center">
-                      <span class="text-caption">UPID: {{ item.raw.upid }} | Stock: {{ item.raw.quantity }}</span>
-                    </div>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-autocomplete>
-
             <!-- Selected Item Info -->
-            <v-expand-transition>
-              <v-alert
-                v-if="selectedItem"
-                :color="selectedItem.quantity < 20 ? 'warning' : 'info'"
-                variant="tonal"
-                class="mb-3"
-                density="compact"
-              >
-                <div class="d-flex align-center justify-space-between">
-                  <div>
-                    <div><strong>Location:</strong> {{ selectedItem.location }}</div>
-                    <div><strong>Available:</strong> {{ selectedItem.quantity }} units</div>
-                    <div v-if="selectedItem.expiration"><strong>Expires:</strong> {{ formatDate(selectedItem.expiration) }}</div>
-                  </div>
+            <v-alert
+              :color="selectedMedication?.quantity < 20 ? 'warning' : 'info'"
+              variant="tonal"
+              class="mb-3"
+            >
+              <div class="d-flex align-center">
+                <v-icon start :color="selectedMedication?.quantity < 20 ? 'warning' : 'info'">mdi-information</v-icon>
+                <div>
+                  <div><strong>Current Stock:</strong> {{ selectedMedication?.quantity }} units</div>
+                  <div v-if="selectedMedication?.location"><strong>Location:</strong> {{ selectedMedication.location }}</div>
                 </div>
-              </v-alert>
-            </v-expand-transition>
+              </div>
+            </v-alert>
 
             <!-- Quantity Input -->
             <v-text-field
@@ -230,12 +314,12 @@
               :rules="[
                 v => !!v || 'Quantity is required',
                 v => v > 0 || 'Must be positive',
-                v => v <= (selectedItem?.quantity || 0) || `Only ${selectedItem?.quantity || 0} available`
+                v => v <= (selectedMedication?.quantity || 0) || `Only ${selectedMedication?.quantity || 0} available`
               ]"
               variant="outlined"
               density="comfortable"
               min="1"
-              :max="selectedItem?.quantity"
+              :max="selectedMedication?.quantity"
               class="mb-3"
             >
               <template v-slot:prepend-inner>
@@ -310,24 +394,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 
 const API_BASE = 'http://127.0.0.1:8080'
 
 const api = {
   async get(path) {
-    const res = await fetch(`${API_BASE}${path}`)
-    if (!res.ok) throw new Error(`Server error: ${res.status}`)
-    return res.json()
+    try {
+      const res = await fetch(`${API_BASE}${path}`)
+      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      return res.json()
+    } catch (err) {
+      throw new Error(`Failed to connect to database: ${err.message}`)
+    }
   },
   async post(path, body) {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    if (!res.ok) throw new Error(`Server error: ${res.status}`)
-    return res.json()
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      return res.json()
+    } catch (err) {
+      throw new Error(`Failed to connect to database: ${err.message}`)
+    }
   }
 }
 
@@ -348,8 +440,10 @@ const snackbarMessage = ref('')
 const showSuccess = ref(false)
 const isManualEntry = ref(false)
 
+// Medication selection
+const selectedMedication = ref(null)
+
 const inventory = ref([])
-const selectedItem = ref(null)
 const checkoutQuantity = ref(1)
 const checkoutPurpose = ref('')
 
@@ -358,16 +452,39 @@ const scansToday = ref(parseInt(localStorage.getItem('scansToday') || '0'))
 
 let scanInterval = null
 
+// Filter to show only specific medications we want (with the specified UPIDs)
+const filteredMedications = computed(() => {
+  const allowedUPIDs = ['GUMMY-BEAR', 'SKITTLES', 'MIKE-N-IKE', 'STARBURSTS']
+  return inventory.value.filter(item => allowedUPIDs.includes(item.upid))
+})
+
 // Helper functions
 const formatDate = (date) => {
   if (!date) return 'N/A'
   return new Date(date).toLocaleDateString()
 }
 
-const getQuantityColor = (qty) => {
-  if (qty < 20) return 'error'
-  if (qty < 50) return 'warning'
-  return 'success'
+const getMedicationColor = (upid) => {
+  const colorMap = {
+    'GUMMY-BEAR': 'red',
+    'SKITTLES': 'purple',
+    'MIKE-N-IKE': 'green',
+    'STARBURSTS': 'orange'
+  }
+  return colorMap[upid] || 'primary'
+}
+
+// Medication functions
+const selectMedication = (medication) => {
+  if (selectedMedication.value?.upid === medication.upid) {
+    selectedMedication.value = null // Toggle off if same medication
+    scannerMessage.value = 'Place NFC tag near device'
+    scannerFeedback.value = 'Waiting for NFC tag...'
+  } else {
+    selectedMedication.value = medication
+    scannerMessage.value = `Ready to scan ${medication.name}`
+    scannerFeedback.value = 'Click Start Scanning to begin'
+  }
 }
 
 // Fetch inventory from database
@@ -376,8 +493,18 @@ const fetchInventory = async () => {
   error.value = null
   try {
     inventory.value = await api.get('/api/inventory?amount=1000&offset=0')
+    
+    // Check if our specific medications exist
+    const allowedUPIDs = ['GUMMY-BEAR', 'SKITTLES', 'MIKE-N-IKE', 'STARBURSTS']
+    const foundUPIDs = inventory.value.map(item => item.upid)
+    const missingUPIDs = allowedUPIDs.filter(upid => !foundUPIDs.includes(upid))
+    
+    if (missingUPIDs.length > 0) {
+      error.value = `Warning: Missing medications in database: ${missingUPIDs.join(', ')}`
+    }
   } catch (err) {
-    error.value = `Failed to load inventory.. BOY FIX TS RIGHT NOW OR ELSE YOU FAG - ${err.message}`
+    error.value = `Database connection failed: ${err.message}`
+    inventory.value = []
   } finally {
     loading.value = false
   }
@@ -393,12 +520,21 @@ const toggleScan = async () => {
 }
 
 const startScanning = async () => {
+  if (!selectedMedication.value) {
+    error.value = 'Please select a medication first'
+    return
+  }
+  
+  if (selectedMedication.value.quantity <= 0) {
+    error.value = `${selectedMedication.value.name} is out of stock`
+    return
+  }
+  
   isScanning.value = true
   scannerStatus.value = 'Scanning...'
-  scannerMessage.value = 'NFC tag detected'
-  scannerFeedback.value = 'Reading medication data...'
+  scannerMessage.value = `Scanning ${selectedMedication.value.name}...`
+  scannerFeedback.value = 'Reading NFC tag...'
   scanProgress.value = 0
-  isManualEntry.value = false
   
   // Simulate scanning progress
   scanInterval = setInterval(() => {
@@ -413,16 +549,8 @@ const startScanning = async () => {
       clearInterval(scanInterval)
       scanProgress.value = 100
       
-      // Get real item from inventory
-      if (inventory.value.length > 0) {
-        const randomItem = inventory.value[Math.floor(Math.random() * inventory.value.length)]
-        handleScanResult(randomItem)
-      } else {
-        scannerFeedback.value = 'No items in inventory'
-        setTimeout(() => {
-          scannerFeedback.value = 'Waiting for NFC tag...'
-        }, 2000)
-      }
+      // Handle the scan result with selected medication
+      handleScanResult()
       
       stopScanning()
     }
@@ -432,8 +560,15 @@ const startScanning = async () => {
 const stopScanning = () => {
   isScanning.value = false
   scannerStatus.value = 'Scanner Ready'
-  scannerMessage.value = 'Place NFC tag near device'
-  scannerFeedback.value = 'Waiting for NFC tag...'
+  
+  if (selectedMedication.value) {
+    scannerMessage.value = `Ready to scan ${selectedMedication.value.name}`
+    scannerFeedback.value = 'Click Start Scanning to begin'
+  } else {
+    scannerMessage.value = 'Place NFC tag near device'
+    scannerFeedback.value = 'Waiting for NFC tag...'
+  }
+  
   scanProgress.value = 0
   
   if (scanInterval) {
@@ -444,15 +579,15 @@ const stopScanning = () => {
 
 const openManualEntry = () => {
   isManualEntry.value = true
-  selectedItem.value = null
   checkoutQuantity.value = 1
   checkoutPurpose.value = ''
   showSuccess.value = false
   scanResultDialog.value = true
 }
 
-const handleScanResult = (item) => {
-  selectedItem.value = item
+const handleScanResult = () => {
+  if (!selectedMedication.value) return
+  
   checkoutQuantity.value = 1
   checkoutPurpose.value = ''
   showSuccess.value = false
@@ -470,8 +605,13 @@ const confirmScanCheckout = async () => {
   const { valid } = await checkoutForm.value.validate()
   if (!valid) return
 
-  if (!selectedItem.value) {
-    error.value = 'Please select a medication'
+  if (!selectedMedication.value) {
+    error.value = 'No medication selected'
+    return
+  }
+
+  if (parseInt(checkoutQuantity.value) > selectedMedication.value.quantity) {
+    error.value = `Only ${selectedMedication.value.quantity} units available`
     return
   }
 
@@ -479,13 +619,13 @@ const confirmScanCheckout = async () => {
   error.value = null
   
   try {
-    // Call the actual API to remove inventory
+    // Call the API to remove inventory
     await api.post('/api/inventory/remove', {
       userid: 'admin',
-      upid: selectedItem.value.upid,
-      location: selectedItem.value.location,
+      upid: selectedMedication.value.upid,
+      location: selectedMedication.value.location || 'Unknown',
       quantity: parseInt(checkoutQuantity.value),
-      expiration: selectedItem.value.expiration
+      expiration: selectedMedication.value.expiration
     })
     
     showSuccess.value = true
@@ -493,10 +633,16 @@ const confirmScanCheckout = async () => {
     // Refresh inventory
     await fetchInventory()
     
+    // Update the selected medication with new quantity
+    const updatedMedication = inventory.value.find(item => item.upid === selectedMedication.value.upid)
+    if (updatedMedication) {
+      selectedMedication.value = updatedMedication
+    }
+    
     setTimeout(() => {
       closeDialog()
       
-      snackbarMessage.value = `${checkoutQuantity.value}x ${selectedItem.value.name} checked out`
+      snackbarMessage.value = `${checkoutQuantity.value}x ${selectedMedication.value.name} checked out`
       showSnackbar.value = true
       
       processingCheckout.value = false
@@ -511,15 +657,24 @@ const closeDialog = () => {
   scanResultDialog.value = false
   showSuccess.value = false
   isManualEntry.value = false
-  selectedItem.value = null
   checkoutQuantity.value = 1
   checkoutPurpose.value = ''
 }
 
-// Watch selected item to reset quantity if needed
-watch(selectedItem, (newItem) => {
-  if (newItem && checkoutQuantity.value > newItem.quantity) {
-    checkoutQuantity.value = newItem.quantity
+// Watch selected medication to update scanner messages and check stock
+watch(selectedMedication, (newMedication) => {
+  if (newMedication && !isScanning.value) {
+    if (newMedication.quantity <= 0) {
+      scannerMessage.value = `${newMedication.name} is out of stock`
+      scannerFeedback.value = 'Please select another medication'
+      error.value = `${newMedication.name} is out of stock`
+    } else {
+      scannerMessage.value = `Ready to scan ${newMedication.name}`
+      scannerFeedback.value = 'Click Start Scanning to begin'
+    }
+  } else if (!newMedication && !isScanning.value) {
+    scannerMessage.value = 'Place NFC tag near device'
+    scannerFeedback.value = 'Waiting for NFC tag...'
   }
 })
 
@@ -592,6 +747,32 @@ onUnmounted(() => {
 
 .bg-primary-light {
   background: rgba(var(--v-theme-primary), 0.05);
+}
+
+.medication-panel {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+  border-radius: 16px;
+}
+
+.medication-button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  border-radius: 12px !important;
+}
+
+.medication-button:hover {
+  transform: translateY(-2px);
+}
+
+.medication-button-selected {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+.medication-button.low-stock {
+  border-color: rgb(var(--v-theme-error));
 }
 
 @keyframes ringPulse {
