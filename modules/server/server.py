@@ -35,7 +35,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
-        "http://100.97.185.98:3000",  # your Tailscale IP
+        "http://100.97.185.98:5173",  # Vue dev server on your Mac, accessed from phone
+        "http://100.97.185.98:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -49,7 +50,7 @@ def get_db():
     """Loads config and returns an active dbConnection."""
 
     db = classTypes.dbConnection(
-        "jacsproject.eyeofthewalr.us",
+        "jjs-mis.tail6e1087.ts.net",
         "testuser",
         "Colorado13!",
         "inv",

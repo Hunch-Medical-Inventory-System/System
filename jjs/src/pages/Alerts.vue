@@ -25,6 +25,38 @@
     <v-row>
       <v-col cols="12">
         <v-card class="gradient-card">
+          <div class="quick-actions">
+            <v-chip
+              key="expired"
+              :variant="getChipVariant('expired')"
+              size="small"
+              class="quick-action-chip"
+              prepend-icon="mdi-alert-circle"
+              @click="toggleFilter('expired')"
+            >
+              Expired
+            </v-chip>
+            <v-chip
+              key="low-stock"
+              :variant="getChipVariant('low-stock')"
+              size="small"
+              class="quick-action-chip"
+              prepend-icon="mdi-package-variant"
+              @click="toggleFilter('low-stock')"
+            >
+              Low Stock
+            </v-chip>
+            <v-chip
+              key="low-stock"
+              size="small"
+              class="quick-action-chip"
+              :variant="getChipVariant('clear-filters')"
+              @click="toggleFilter('clear-filters')"
+              prepend-icon="mdi-broom"
+            >
+              Clear Filters
+            </v-chip>
+          </div>
           <v-data-table
             :headers="headers"
             :items="warningItems"
@@ -175,13 +207,33 @@ const headers = [
 ]
 
 // Only show items that are expired or expiring within 30 days
-const warningItems = computed(() =>
-  allInventory.value.filter(item => {
+const warningItems = computed(() => {
+  return allInventory.value.filter(item => {
     if (!item.expiration) return false
     const days = daysUntilExpiry(item.expiration)
-    return days <= 30
+    if (days > 30) return false
+
+    const hasExpiredFilter = activeFilters.value.has('expired')
+    const hasLowStockFilter = activeFilters.value.has('low-stock')
+
+    // No filters active — show everything
+    if (!hasExpiredFilter && !hasLowStockFilter) return true
+
+    const isExpiredItem = days < 0
+    const isLowStock = item.quantity < 20
+
+    // Both active — must match both
+    if (hasExpiredFilter && hasLowStockFilter) {
+      return isExpiredItem && isLowStock
+    }
+
+    // Only expired active
+    if (hasExpiredFilter) return isExpiredItem
+
+    // Only low-stock active
+    if (hasLowStockFilter) return isLowStock
   })
-)
+})
 
 const daysUntilExpiry = (expiration) => {
   return Math.ceil((new Date(expiration) - new Date()) / (1000 * 60 * 60 * 24))
@@ -271,5 +323,54 @@ const fetchInventory = async () => {
   }
 }
 
+const activeFilters = ref(new Set())
+
+const toggleFilter = (filter) => {
+  if (filter === 'clear-filters') {
+    activeFilters.value.clear()
+    activeFilters.value = new Set() // trigger reactivity
+    return
+  }
+  if (activeFilters.value.has(filter)) {
+    activeFilters.value.delete(filter)
+  } else {
+    activeFilters.value.add(filter)
+  }
+  activeFilters.value = new Set(activeFilters.value) // trigger reactivity
+  if (activeFilters.value.size > 0) {
+    activeFilters.value.add('clear-filters')
+  }
+  if (activeFilters.value.size === 1 && activeFilters.value.has('clear-filters')) {
+    activeFilters.value.delete('clear-filters')
+  }
+}
+
+const getChipVariant = (filter) => {
+  return activeFilters.value.has(filter) ? 'outlined' : 'elevated'
+}
+
 onMounted(fetchInventory)
 </script>
+
+<style scoped>
+.quick-actions {
+  display: flex;
+  gap: 6px;
+  margin: 0.75rem;
+  margin-left: 0;
+  flex-wrap: wrap;
+}
+
+.quick-action-chip {
+  border: 1px solid var(--border-color) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  height: 28px;
+}
+
+.quick-action-chip:hover { 
+  transform: translateY(-1px); 
+  background: var(--tertiary-dark) !important;
+}
+</style>

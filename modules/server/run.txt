@@ -1,2 +1,2 @@
 source venv/bin/activate
-uvicorn server:app --reload --port 8080
+uvicorn server:app --host 0.0.0.0 --port 8080
