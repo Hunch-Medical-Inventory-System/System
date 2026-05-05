@@ -118,4 +118,6 @@ erDiagram
 
 ## Reflection
 
-A lot of the ease of maming this was due to how robust classTypes.py is. I wish I had been more able to actually use it and update it as needed.
+A lot of the ease of maming this was due to how robust classTypes.py is. I wish I had been more able to actually use it and update it as needed. However, I am proud the system I made and, despite what some say, the ease of implenation and use. I think that I will use more modules like it in the future.
+
+The Command Line Interface wasn't one of my favorites, it lacks depth, like color, which would of been cool to add. However, overall i think the finished product is good enough and provided a reasonable use method. I think I would of liked to make the connection more reliabled but given the limation, it was a reasonable one.

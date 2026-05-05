@@ -88,7 +88,7 @@ def updateInventory(invManager):
     userid = input("Enter user ID: ")
     upid = input("Enter Product ID: ")
     location = input("Enter location: ")
-    quantity = input("Enter quantity: ")
+    quantity = int(input("Enter quantity: "))
 
     # Collect expiration date components
     year = int(input("Enter expiration year: "))
@@ -119,7 +119,7 @@ def updateRmvInventory(invManager):
     userid = input("Enter user ID: ")
     upid = input("Enter Product ID: ")
     location = input("Enter location: ")
-    quantity = input("Enter quantity: ")
+    quantity = int(input("Enter quantity: "))
 
     # Expiration date (used for identifying item batch)
     year = int(input("Enter expiration year: "))
